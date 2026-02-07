@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Store, MapPin, Phone, Mail, ArrowRight, Loader, Sparkles } from 'lucide-react';
+import { Store, MapPin, Phone, ArrowRight, Loader, Sparkles, CheckCircle2, ChevronLeft, Upload } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../../config/api';
 import toast from 'react-hot-toast';
@@ -28,6 +28,7 @@ const RestaurantOnboarding = () => {
             whatsappNumber: ''
         },
         cuisine: '',
+        logo: ''
     });
 
     const handleChange = (e, section = null) => {
@@ -110,40 +111,119 @@ const RestaurantOnboarding = () => {
         }
     };
 
+    const steps = [
+        { num: 1, title: 'Basics', icon: Store },
+        { num: 2, title: 'Location', icon: MapPin },
+        { num: 3, title: 'Contact', icon: Phone }
+    ];
+
     return (
-        <div className="min-h-screen relative flex items-center justify-center p-6 overflow-hidden">
-            {/* Background Orbs */}
-            <div className="orb orb-1"></div>
-            <div className="orb orb-2"></div>
+        <div className="min-h-screen relative flex items-center justify-center p-6 bg-black overflow-hidden font-sans">
+            {/* Ambient Background Effects */}
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(120,0,255,0.1),transparent_50%)]" />
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_0%_100%,rgba(50,200,255,0.05),transparent_40%)]" />
 
+            {/* Animated Orbs */}
             <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="max-w-2xl w-full"
-            >
-                <div className="text-center mb-10">
-                    <motion.div
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        className="inline-flex p-4 rounded-2xl bg-primary/10 text-primary mb-4"
-                    >
-                        <Sparkles size={32} />
-                    </motion.div>
-                    <h1 className="text-4xl font-extrabold mb-2 grad-text">Launch Your Digital Restaurant</h1>
-                    <p className="text-dim">Just a few steps to set up your premium dining experience.</p>
-                </div>
+                animate={{
+                    scale: [1, 1.2, 1],
+                    opacity: [0.3, 0.5, 0.3],
+                    blob: "10px"
+                }}
+                transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
+                className="absolute top-1/4 -left-20 w-96 h-96 bg-primary/20 rounded-full blur-[100px]"
+            />
+            <motion.div
+                animate={{
+                    scale: [1.1, 0.9, 1.1],
+                    opacity: [0.2, 0.4, 0.2]
+                }}
+                transition={{ duration: 10, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+                className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-indigo-500/10 rounded-full blur-[120px]"
+            />
 
-                <div className="card-premium relative">
-                    {/* Progress Bar */}
-                    <div className="absolute top-0 left-0 w-full h-1 bg-white/5">
+            <div className="relative z-10 w-full max-w-5xl flex flex-col md:flex-row gap-8 items-stretch h-auto min-h-[600px]">
+
+                {/* Left Side - Welcome & Progress */}
+                <motion.div
+                    initial={{ opacity: 0, x: -50 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.6 }}
+                    className="w-full md:w-1/3 flex flex-col justify-between py-8 text-white"
+                >
+                    <div>
                         <motion.div
-                            className="h-full bg-grad-premium"
-                            initial={{ width: '33.33%' }}
-                            animate={{ width: `${(step / 3) * 100}%` }}
-                        />
+                            initial={{ scale: 0 }}
+                            animate={{ scale: 1 }}
+                            transition={{ type: "spring", stiffness: 200, damping: 15 }}
+                            className="inline-flex p-3 rounded-2xl bg-white/10 backdrop-blur-md border border-white/10 text-primary mb-6 shadow-lg shadow-primary/20"
+                        >
+                            <Sparkles size={24} />
+                        </motion.div>
+                        <h1 className="text-4xl md:text-5xl font-bold mb-4 tracking-tight leading-tight">
+                            Setup Your <br />
+                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-indigo-400 to-purple-400">
+                                Digital Restaurant
+                            </span>
+                        </h1>
+                        <p className="text-white/60 text-lg leading-relaxed max-w-xs">
+                            Let's configure your restaurant profile to start accepting orders instantly.
+                        </p>
                     </div>
 
-                    <form onSubmit={handleSubmit} className="mt-6">
+                    {/* Progress Stepper */}
+                    <div className="mt-12 space-y-8 relative">
+                        {/* Connecting Line */}
+                        <div className="absolute left-[19px] top-2 bottom-10 w-[2px] bg-white/10 z-0" />
+
+                        {steps.map((s, idx) => {
+                            const isActive = step === s.num;
+                            const isCompleted = step > s.num;
+                            const Icon = s.icon;
+
+                            return (
+                                <div key={s.num} className="relative z-10 flex items-center gap-4 group">
+                                    <motion.div
+                                        animate={{
+                                            backgroundColor: isActive || isCompleted ? 'rgba(var(--primary-rgb), 1)' : 'rgba(255,255,255,0.05)',
+                                            borderColor: isActive ? 'rgba(var(--primary-rgb), 0.5)' : 'rgba(255,255,255,0.1)',
+                                            scale: isActive ? 1.1 : 1
+                                        }}
+                                        className={`w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all duration-300 ${isCompleted ? 'bg-primary border-primary' : 'bg-white/5 border-white/10'}`}
+                                    >
+                                        {isCompleted ? <CheckCircle2 size={18} className="text-white" /> : <span className={`text-sm font-bold ${isActive ? 'text-white' : 'text-white/40'}`}>{s.num}</span>}
+                                    </motion.div>
+                                    <div>
+                                        <h3 className={`font-semibold text-lg transition-colors ${isActive || isCompleted ? 'text-white' : 'text-white/40'}`}>
+                                            {s.title}
+                                        </h3>
+                                        {isActive && (
+                                            <motion.p
+                                                initial={{ opacity: 0, height: 0 }}
+                                                animate={{ opacity: 1, height: 'auto' }}
+                                                className="text-white/50 text-xs mt-0.5"
+                                            >
+                                                In Progress...
+                                            </motion.p>
+                                        )}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </motion.div>
+
+                {/* Right Side - Form Card */}
+                <motion.div
+                    initial={{ opacity: 0, y: 50 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.6, delay: 0.2 }}
+                    className="w-full md:w-2/3 bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-8 shadow-2xl relative overflow-hidden"
+                >
+                    {/* Glass Shine Effect */}
+                    <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-white/5 to-transparent pointer-events-none" />
+
+                    <form onSubmit={handleSubmit} className="relative z-10 h-full flex flex-col">
                         <AnimatePresence mode="wait">
                             {step === 1 && (
                                 <motion.div
@@ -151,90 +231,88 @@ const RestaurantOnboarding = () => {
                                     initial={{ opacity: 0, x: 20 }}
                                     animate={{ opacity: 1, x: 0 }}
                                     exit={{ opacity: 0, x: -20 }}
-                                    className="space-y-6"
+                                    transition={{ duration: 0.3 }}
+                                    className="flex-1 space-y-8"
                                 >
-                                    <h2 className="text-xl font-semibold flex items-center gap-2">
-                                        <Store className="text-primary" /> Basic Information
-                                    </h2>
-                                    <div className="space-y-4">
-                                        <div>
-                                            <label className="label-premium">Restaurant Name</label>
-                                            <input
-                                                required
-                                                type="text"
-                                                name="name"
-                                                value={formData.name}
-                                                onChange={handleChange}
-                                                placeholder="e.g. The Grand Bistro"
-                                                className="input-premium"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="label">Restaurant Description</label>
-                                            <textarea
-                                                name="description"
-                                                value={formData.description}
-                                                onChange={handleChange}
-                                                className="input min-h-[100px]"
-                                                placeholder="Tell customers about your restaurant..."
-                                                required
-                                            />
-                                        </div>
+                                    <div>
+                                        <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
+                                            Basic Information
+                                            <div className="h-px flex-1 bg-white/10 ml-4" />
+                                        </h2>
 
-                                        {/* Logo Upload */}
-                                        <div>
-                                            <label className="label">Restaurant Logo (Optional)</label>
-                                            <div className="flex flex-col gap-3">
-                                                <div className="relative">
+                                        <div className="space-y-6">
+                                            <div className="group">
+                                                <label className="block text-sm font-medium text-white/70 mb-2 group-focus-within:text-primary transition-colors">Restaurant Name</label>
+                                                <input
+                                                    required
+                                                    type="text"
+                                                    name="name"
+                                                    value={formData.name}
+                                                    onChange={handleChange}
+                                                    placeholder="e.g. The Grand Bistro"
+                                                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3.5 text-white placeholder-white/30 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all hover:bg-white/10"
+                                                />
+                                            </div>
+
+                                            <div className="group">
+                                                <label className="block text-sm font-medium text-white/70 mb-2 group-focus-within:text-primary transition-colors">Description</label>
+                                                <textarea
+                                                    name="description"
+                                                    value={formData.description}
+                                                    onChange={handleChange}
+                                                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3.5 text-white placeholder-white/30 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all hover:bg-white/10 min-h-[120px] resize-none"
+                                                    placeholder="Tell customers about your unique dining experience..."
+                                                    required
+                                                />
+                                            </div>
+
+                                            {/* Media Upload Area */}
+                                            <div>
+                                                <label className="block text-sm font-medium text-white/70 mb-2">Restaurant Logo</label>
+                                                <div
+                                                    className={`relative border-2 border-dashed rounded-xl p-6 transition-all duration-300 ${formData.logo ? 'border-primary/50 bg-primary/5' : 'border-white/10 hover:border-white/30 hover:bg-white/5'}`}
+                                                >
                                                     <input
                                                         type="file"
                                                         accept="image/*"
                                                         onChange={handleLogoUpload}
-                                                        className="hidden"
-                                                        id="logo-upload"
+                                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
                                                         disabled={uploadingLogo}
                                                     />
-                                                    <label
-                                                        htmlFor="logo-upload"
-                                                        className={`btn btn-outline w-full cursor-pointer ${uploadingLogo ? 'opacity-50' : ''}`}
-                                                    >
-                                                        {uploadingLogo ? (
-                                                            <>
-                                                                <Loader className="animate-spin" size={18} />
-                                                                Uploading...
-                                                            </>
-                                                        ) : (
-                                                            <>
-                                                                <Store size={18} />
-                                                                Choose Logo
-                                                            </>
-                                                        )}
-                                                    </label>
-                                                </div>
 
-                                                {formData.logo && (
-                                                    <div className="p-3 bg-white/5 rounded-lg flex items-center gap-3">
-                                                        <img
-                                                            src={formData.logo}
-                                                            alt="Logo preview"
-                                                            className="h-16 w-16 object-contain rounded"
-                                                        />
+                                                    <div className="flex items-center gap-4 relative z-10">
+                                                        {formData.logo ? (
+                                                            <div className="w-16 h-16 rounded-lg bg-white/10 p-1">
+                                                                <img src={formData.logo} alt="Logo" className="w-full h-full object-contain rounded-md" />
+                                                            </div>
+                                                        ) : (
+                                                            <div className="w-16 h-16 rounded-lg bg-white/5 flex items-center justify-center">
+                                                                <Upload className="text-white/40" />
+                                                            </div>
+                                                        )}
+
                                                         <div className="flex-1">
-                                                            <p className="text-sm text-white">Logo uploaded ✓</p>
-                                                            <p className="text-xs text-dim">Click to change</p>
+                                                            {uploadingLogo ? (
+                                                                <div className="flex items-center gap-2 text-primary">
+                                                                    <Loader className="animate-spin w-4 h-4" />
+                                                                    <span className="text-sm font-medium">Uploading...</span>
+                                                                </div>
+                                                            ) : (
+                                                                <>
+                                                                    <h4 className="text-white font-medium text-sm">
+                                                                        {formData.logo ? 'Change Logo' : 'Upload Logo'}
+                                                                    </h4>
+                                                                    <p className="text-white/40 text-xs mt-1">
+                                                                        PNG, JPG up to 5MB
+                                                                    </p>
+                                                                </>
+                                                            )}
                                                         </div>
                                                     </div>
-                                                )}
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
-                                    <button
-                                        type="button"
-                                        onClick={nextStep}
-                                        className="btn-premium btn-premium-primary w-full"
-                                    >
-                                        Next Component <ArrowRight size={18} />
-                                    </button>
                                 </motion.div>
                             )}
 
@@ -244,58 +322,72 @@ const RestaurantOnboarding = () => {
                                     initial={{ opacity: 0, x: 20 }}
                                     animate={{ opacity: 1, x: 0 }}
                                     exit={{ opacity: 0, x: -20 }}
-                                    className="space-y-6"
+                                    transition={{ duration: 0.3 }}
+                                    className="flex-1 space-y-8"
                                 >
-                                    <h2 className="text-xl font-semibold flex items-center gap-2">
-                                        <MapPin className="text-primary" /> Location Details
-                                    </h2>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div className="md:col-span-2">
-                                            <label className="label-premium">Street Address</label>
-                                            <input
-                                                type="text"
-                                                name="street"
-                                                value={formData.address.street}
-                                                onChange={(e) => handleChange(e, 'address')}
-                                                className="input-premium"
-                                            />
+                                    <div>
+                                        <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
+                                            Location Details
+                                            <div className="h-px flex-1 bg-white/10 ml-4" />
+                                        </h2>
+
+                                        <div className="grid grid-cols-2 gap-6">
+                                            <div className="col-span-2 group">
+                                                <label className="block text-sm font-medium text-white/70 mb-2 group-focus-within:text-primary transition-colors">Street Address</label>
+                                                <input
+                                                    type="text"
+                                                    name="street"
+                                                    value={formData.address.street}
+                                                    onChange={(e) => handleChange(e, 'address')}
+                                                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3.5 text-white placeholder-white/30 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all hover:bg-white/10"
+                                                    placeholder="123 Culinary Ave"
+                                                />
+                                            </div>
+                                            <div className="group">
+                                                <label className="block text-sm font-medium text-white/70 mb-2 group-focus-within:text-primary transition-colors">City</label>
+                                                <input
+                                                    type="text"
+                                                    name="city"
+                                                    value={formData.address.city}
+                                                    onChange={(e) => handleChange(e, 'address')}
+                                                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3.5 text-white placeholder-white/30 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all hover:bg-white/10"
+                                                    placeholder="New York"
+                                                />
+                                            </div>
+                                            <div className="group">
+                                                <label className="block text-sm font-medium text-white/70 mb-2 group-focus-within:text-primary transition-colors">Zip Code</label>
+                                                <input
+                                                    type="text"
+                                                    name="zipCode"
+                                                    value={formData.address.zipCode}
+                                                    onChange={(e) => handleChange(e, 'address')}
+                                                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3.5 text-white placeholder-white/30 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all hover:bg-white/10"
+                                                    placeholder="10001"
+                                                />
+                                            </div>
+                                            <div className="group">
+                                                <label className="block text-sm font-medium text-white/70 mb-2 group-focus-within:text-primary transition-colors">State</label>
+                                                <input
+                                                    type="text"
+                                                    name="state"
+                                                    value={formData.address.state}
+                                                    onChange={(e) => handleChange(e, 'address')}
+                                                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3.5 text-white placeholder-white/30 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all hover:bg-white/10"
+                                                    placeholder="NY"
+                                                />
+                                            </div>
+                                            <div className="group">
+                                                <label className="block text-sm font-medium text-white/70 mb-2 group-focus-within:text-primary transition-colors">Country</label>
+                                                <input
+                                                    type="text"
+                                                    name="country"
+                                                    value={formData.address.country}
+                                                    onChange={(e) => handleChange(e, 'address')}
+                                                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3.5 text-white placeholder-white/30 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all hover:bg-white/10"
+                                                    placeholder="USA"
+                                                />
+                                            </div>
                                         </div>
-                                        <div>
-                                            <label className="label-premium">City</label>
-                                            <input
-                                                type="text"
-                                                name="city"
-                                                value={formData.address.city}
-                                                onChange={(e) => handleChange(e, 'address')}
-                                                className="input-premium"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="label-premium">Zip Code</label>
-                                            <input
-                                                type="text"
-                                                name="zipCode"
-                                                value={formData.address.zipCode}
-                                                onChange={(e) => handleChange(e, 'address')}
-                                                className="input-premium"
-                                            />
-                                        </div>
-                                    </div>
-                                    <div className="flex gap-4">
-                                        <button
-                                            type="button"
-                                            onClick={prevStep}
-                                            className="btn-premium btn-premium-secondary flex-1"
-                                        >
-                                            Back
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={nextStep}
-                                            className="btn-premium btn-premium-primary flex-1"
-                                        >
-                                            Continue <ArrowRight size={18} />
-                                        </button>
                                     </div>
                                 </motion.div>
                             )}
@@ -306,63 +398,89 @@ const RestaurantOnboarding = () => {
                                     initial={{ opacity: 0, x: 20 }}
                                     animate={{ opacity: 1, x: 0 }}
                                     exit={{ opacity: 0, x: -20 }}
-                                    className="space-y-6"
+                                    transition={{ duration: 0.3 }}
+                                    className="flex-1 space-y-8"
                                 >
-                                    <h2 className="text-xl font-semibold flex items-center gap-2">
-                                        <Phone className="text-primary" /> Contact Channels
-                                    </h2>
-                                    <div className="space-y-4">
-                                        <div>
-                                            <label className="label-premium">Business Phone</label>
-                                            <input
-                                                type="text"
-                                                name="phone"
-                                                value={formData.contact.phone}
-                                                onChange={(e) => handleChange(e, 'contact')}
-                                                className="input-premium"
-                                            />
+                                    <div>
+                                        <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
+                                            Contact Channels
+                                            <div className="h-px flex-1 bg-white/10 ml-4" />
+                                        </h2>
+
+                                        <div className="space-y-6">
+                                            <div className="group">
+                                                <label className="block text-sm font-medium text-white/70 mb-2 group-focus-within:text-primary transition-colors">Business Phone</label>
+                                                <input
+                                                    type="text"
+                                                    name="phone"
+                                                    value={formData.contact.phone}
+                                                    onChange={(e) => handleChange(e, 'contact')}
+                                                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3.5 text-white placeholder-white/30 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all hover:bg-white/10"
+                                                    placeholder="+1 (555) 000-0000"
+                                                />
+                                            </div>
+                                            <div className="group">
+                                                <label className="block text-sm font-medium text-white/70 mb-2 group-focus-within:text-primary transition-colors">Business Email</label>
+                                                <input
+                                                    type="email"
+                                                    name="email"
+                                                    value={formData.contact.email}
+                                                    onChange={(e) => handleChange(e, 'contact')}
+                                                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3.5 text-white placeholder-white/30 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all hover:bg-white/10"
+                                                    placeholder="contact@restaurant.com"
+                                                />
+                                            </div>
+                                            <div className="group">
+                                                <label className="block text-sm font-medium text-white/70 mb-2 group-focus-within:text-whatsapp transition-colors">WhatsApp Number (Optional)</label>
+                                                <input
+                                                    type="text"
+                                                    name="whatsappNumber"
+                                                    value={formData.contact.whatsappNumber}
+                                                    onChange={(e) => handleChange(e, 'contact')}
+                                                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3.5 text-white placeholder-white/30 focus:outline-none focus:border-green-500/50 focus:ring-1 focus:ring-green-500/50 transition-all hover:bg-white/10"
+                                                    placeholder="+1 (555) 000-0000"
+                                                />
+                                            </div>
                                         </div>
-                                        <div>
-                                            <label className="label-premium">Business Email</label>
-                                            <input
-                                                type="email"
-                                                name="email"
-                                                value={formData.contact.email}
-                                                onChange={(e) => handleChange(e, 'contact')}
-                                                className="input-premium"
-                                            />
-                                        </div>
-                                    </div>
-                                    <div className="flex gap-4">
-                                        <button
-                                            type="button"
-                                            onClick={prevStep}
-                                            className="btn-premium btn-premium-secondary flex-1"
-                                        >
-                                            Back
-                                        </button>
-                                        <button
-                                            type="submit"
-                                            disabled={loading}
-                                            className="btn-premium btn-premium-primary flex-1"
-                                        >
-                                            {loading ? <Loader className="animate-spin" /> : 'Launch Now'}
-                                        </button>
                                     </div>
                                 </motion.div>
                             )}
                         </AnimatePresence>
-                    </form>
-                </div>
-            </motion.div>
 
-            <style jsx>{`
-                .grad-text {
-                    background: var(--grad-premium);
-                    -webkit-background-clip: text;
-                    -webkit-text-fill-color: transparent;
-                }
-            `}</style>
+                        {/* Navigation Buttons */}
+                        <div className="pt-8 mt-auto flex items-center justify-between border-t border-white/10">
+                            {step > 1 ? (
+                                <button
+                                    type="button"
+                                    onClick={prevStep}
+                                    className="flex items-center gap-2 text-white/60 hover:text-white transition-colors px-4 py-2 rounded-lg hover:bg-white/5"
+                                >
+                                    <ChevronLeft size={18} />
+                                    Back
+                                </button>
+                            ) : (
+                                <div /> /* Spacer */
+                            )}
+
+                            <button
+                                type={step === 3 ? 'submit' : 'button'}
+                                onClick={step === 3 ? undefined : nextStep}
+                                disabled={loading}
+                                className="bg-primary hover:bg-primary-dark text-black font-semibold rounded-xl px-8 py-3 flex items-center gap-2 transition-all hover:scale-105 active:scale-95 shadow-lg shadow-primary/25"
+                            >
+                                {loading ? (
+                                    <Loader className="animate-spin" size={20} />
+                                ) : (
+                                    <>
+                                        {step === 3 ? 'Launch Restaurant' : 'Continue'}
+                                        {step !== 3 && <ArrowRight size={18} />}
+                                    </>
+                                )}
+                            </button>
+                        </div>
+                    </form>
+                </motion.div>
+            </div>
         </div>
     );
 };
