@@ -4,8 +4,10 @@ import { Lock, ArrowLeft, Eye, EyeOff, KeyRound, CheckCircle2, XCircle, Loader2 
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import api from '../../config/api';
+import Logo from '../../components/common/Logo';
 
 const ResetPassword = () => {
+    // ... logic remains same ...
     const navigate = useNavigate();
     const location = useLocation();
     const emailFromState = location.state?.email || '';
@@ -100,9 +102,8 @@ const ResetPassword = () => {
 
     return (
         <div className="min-h-screen flex">
-            {/* Left Side ... same as before ... */}
+            {/* Left Side */}
             <div className="hidden lg:flex lg:w-1/2 relative bg-foreground overflow-hidden items-center justify-center p-12">
-                {/* ... (keeping existing visual code) ... */}
                 <div className="absolute inset-0 opacity-10"
                     style={{
                         backgroundImage: `radial-gradient(circle at 2px 2px, rgba(255,255,255,0.2) 1px, transparent 0)`,
@@ -120,6 +121,10 @@ const ResetPassword = () => {
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.6 }}
                     >
+                        <Link to="/" className="group mb-12 block">
+                            <Logo className="w-auto h-12 justify-center" />
+                        </Link>
+
                         <div className="w-20 h-20 rounded-3xl bg-primary/20 flex items-center justify-center mx-auto mb-8">
                             <KeyRound className="w-10 h-10 text-primary" />
                         </div>
@@ -136,6 +141,11 @@ const ResetPassword = () => {
             {/* Right Side - Form */}
             <div className="w-full lg:w-1/2 flex items-center justify-center p-6 bg-background">
                 <div className="w-full max-w-md">
+                    {/* Logo - Centered for Mobile */}
+                    <div className="flex justify-center lg:hidden mb-10">
+                        <Logo className="w-auto h-12" />
+                    </div>
+
                     <div className="text-center lg:text-left mb-8">
                         <Link to="/login" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6 transition-colors">
                             <ArrowLeft className="w-4 h-4" />

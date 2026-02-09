@@ -3,13 +3,25 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { LogIn, ArrowRight, CheckCircle2, Star, QrCode } from 'lucide-react';
 import { motion } from 'framer-motion';
+import Logo from '../../components/common/Logo';
 
 const Login = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
-    const { login, checkRestaurantStatus } = useAuth();
+    const { login, checkRestaurantStatus, user: authUser } = useAuth();
     const navigate = useNavigate();
+
+    // Auto-redirect if already logged in
+    useState(() => {
+        if (authUser) {
+            if (authUser.role === 'OWNER') {
+                navigate('/dashboard');
+            } else {
+                navigate('/orders');
+            }
+        }
+    }, [authUser, navigate]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -17,11 +29,29 @@ const Login = () => {
 
         try {
             const user = await login(email, password);
-            if (user.role === 'CHEF') {
-                navigate('/kds');
-            } else if (user.role === 'OWNER') {
+            if (user.role === 'OWNER') {
                 const hasRestaurant = await checkRestaurantStatus();
                 navigate(hasRestaurant ? '/dashboard' : '/onboarding');
+            } else if (user.permissions?.includes('orders')) {
+                navigate('/orders');
+            } else if (user.permissions && user.permissions.length > 0) {
+                // Redirect to first allowed permission
+                const firstPerm = user.permissions[0];
+                const routeMap = {
+                    'dashboard': '/dashboard',
+                    'tables': '/tables',
+                    'menu': '/menu',
+                    'inventory': '/inventory',
+                    'staff': '/staff',
+                    'analytics': '/analytics',
+                    'reviews': '/reviews',
+                    'service': '/service',
+                    'complaints': '/complaints',
+                    'settings': '/settings'
+                };
+                navigate(routeMap[firstPerm] || '/dashboard');
+            } else if (user.role === 'CHEF') {
+                navigate('/orders');
             } else {
                 navigate('/dashboard');
             }
@@ -63,12 +93,9 @@ const Login = () => {
                         transition={{ duration: 0.6 }}
                         className="mb-12"
                     >
-                        <div className="flex items-center gap-3 mb-8">
-                            <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center shadow-lg shadow-primary/20">
-                                <QrCode className="w-6 h-6 text-primary-foreground" />
-                            </div>
-                            <span className="font-logo-stylish text-3xl text-background">Tablefy</span>
-                        </div>
+                        <Link to="/" className="group mb-12 block">
+                            <Logo className="w-auto h-12" />
+                        </Link>
 
                         <h2 className="font-display text-4xl font-bold text-background mb-6 leading-tight">
                             Manage Your Restaurant <br />
@@ -76,7 +103,7 @@ const Login = () => {
                         </h2>
 
                         <p className="text-background/70 text-lg leading-relaxed mb-8">
-                            Join 89+ restaurants using Tablefy to <span className="text-primary font-semibold">streamline operations, cut costs, and delight customers</span> with easy ordering.
+                            Join 89+ restaurants using ChefOS to <span className="text-primary font-semibold">streamline operations, cut costs, and delight customers</span> with easy ordering.
                         </p>
 
                         <div className="bg-background/10 backdrop-blur-md rounded-2xl p-6 border border-background/10">
@@ -95,7 +122,7 @@ const Login = () => {
                                 ))}
                             </div>
                             <p className="text-background/80 italic">
-                                "Honestly, I was not sure at first but Tablefy made our weekends so much smoother. The digital menu just works and customers actually enjoy using it!"
+                                "Honestly, I was not sure at first but ChefOS made our weekends so much smoother. The digital menu just works and customers actually enjoy using it!"
                             </p>
                         </div>
                     </motion.div>
@@ -105,9 +132,14 @@ const Login = () => {
             {/* Right Side - Form */}
             <div className="w-full lg:w-1/2 flex items-center justify-center p-6 bg-background">
                 <div className="w-full max-w-md">
+                    {/* Logo - Centered for Mobile */}
+                    <div className="flex justify-center lg:hidden mb-10">
+                        <Logo className="w-auto h-12" />
+                    </div>
+
                     <div className="text-center lg:text-left mb-8">
                         <h2 className="font-display text-3xl font-bold mb-2">Welcome Back</h2>
-                        <p className="text-muted-foreground">Please enter your details to sign in.</p>
+                        <p className="text-muted-foreground">Join 89+ restaurants growing with ChefOS.</p>
                     </div>
 
                     <form onSubmit={handleSubmit} className="space-y-5">

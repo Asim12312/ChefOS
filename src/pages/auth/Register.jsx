@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { UserPlus, ArrowRight, Store, ChefHat, Check, X, CheckCircle2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import Logo from "../../components/common/Logo";
 
 const Register = () => {
     const [formData, setFormData] = useState({
@@ -21,8 +22,15 @@ const Register = () => {
     });
     const [showPasswordRequirements, setShowPasswordRequirements] = useState(false);
 
-    const { register, checkRestaurantStatus } = useAuth();
+    const { register, checkRestaurantStatus, user: authUser } = useAuth();
     const navigate = useNavigate();
+
+    // Auto-redirect if already logged in
+    useState(() => {
+        if (authUser) {
+            navigate('/dashboard');
+        }
+    }, [authUser, navigate]);
 
     useEffect(() => {
         const isMatch = formData.password && formData.confirmPassword && formData.password === formData.confirmPassword;
@@ -58,7 +66,8 @@ const Register = () => {
                 const hasRestaurant = await checkRestaurantStatus();
                 navigate(hasRestaurant ? '/dashboard' : '/onboarding');
             } else {
-                navigate('/dashboard');
+                // For staff registered manually (legacy flow), check role
+                navigate(formData.role === 'CHEF' ? '/orders' : '/dashboard');
             }
         } catch (error) {
             console.error('Registration error:', error);
@@ -96,9 +105,11 @@ const Register = () => {
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.6 }}
                     >
+                        <div className="mb-8">
+                            <Logo className="w-auto h-16" />
+                        </div>
                         <h2 className="font-display text-4xl font-bold text-background mb-6 leading-tight">
-                            Start Your Journey with <br />
-                            <span className="font-logo-stylish text-primary text-5xl mt-2 block">Tablefy</span>
+                            Start Your Journey with ChefOS
                         </h2>
 
                         <div className="space-y-6 mt-12">
@@ -131,9 +142,14 @@ const Register = () => {
             {/* Right Side - Registration Form */}
             <div className="w-full lg:w-1/2 flex items-center justify-center p-6 bg-background">
                 <div className="w-full max-w-md">
+                    {/* Logo - Centered for Mobile */}
+                    <div className="flex justify-center lg:hidden mb-10">
+                        <Logo className="w-auto h-12" />
+                    </div>
+
                     <div className="text-center lg:text-left mb-8">
                         <h2 className="font-display text-3xl font-bold mb-2">Create Account</h2>
-                        <p className="text-muted-foreground">Join 89+ restaurants growing with Tablefy.</p>
+                        <p className="text-muted-foreground">Join 89+ restaurants growing with ChefOS.</p>
                     </div>
 
                     <form onSubmit={handleSubmit} className="space-y-6">
@@ -142,8 +158,8 @@ const Register = () => {
                             <div
                                 onClick={() => setFormData({ ...formData, role: 'OWNER' })}
                                 className={`cursor-pointer p-4 rounded-xl border-2 transition-all ${formData.role === 'OWNER'
-                                        ? 'border-primary bg-primary/5 shadow-md shadow-primary/10'
-                                        : 'border-border hover:border-primary/50 hover:bg-muted/50'
+                                    ? 'border-primary bg-primary/5 shadow-md shadow-primary/10'
+                                    : 'border-border hover:border-primary/50 hover:bg-muted/50'
                                     }`}
                             >
                                 <Store className={`w-8 h-8 mb-3 ${formData.role === 'OWNER' ? 'text-primary' : 'text-muted-foreground'}`} />
@@ -154,8 +170,8 @@ const Register = () => {
                             <div
                                 onClick={() => setFormData({ ...formData, role: 'CHEF' })}
                                 className={`cursor-pointer p-4 rounded-xl border-2 transition-all ${formData.role === 'CHEF'
-                                        ? 'border-primary bg-primary/5 shadow-md shadow-primary/10'
-                                        : 'border-border hover:border-primary/50 hover:bg-muted/50'
+                                    ? 'border-primary bg-primary/5 shadow-md shadow-primary/10'
+                                    : 'border-border hover:border-primary/50 hover:bg-muted/50'
                                     }`}
                             >
                                 <ChefHat className={`w-8 h-8 mb-3 ${formData.role === 'CHEF' ? 'text-primary' : 'text-muted-foreground'}`} />
@@ -205,8 +221,8 @@ const Register = () => {
                                         type="password"
                                         name="password"
                                         className={`w-full px-4 py-3 rounded-xl border transition-all outline-none ${formData.password.length > 0 && !Object.values(passwordCriteria).slice(0, 3).every(Boolean)
-                                                ? 'border-destructive/50 focus:border-destructive bg-destructive/5'
-                                                : 'border-border bg-muted/30 focus:bg-background focus:border-primary/50'
+                                            ? 'border-destructive/50 focus:border-destructive bg-destructive/5'
+                                            : 'border-border bg-muted/30 focus:bg-background focus:border-primary/50'
                                             }`}
                                         placeholder="••••••"
                                         value={formData.password}
@@ -221,10 +237,10 @@ const Register = () => {
                                         type="password"
                                         name="confirmPassword"
                                         className={`w-full px-4 py-3 rounded-xl border transition-all outline-none ${formData.confirmPassword.length > 0 && !passwordCriteria.match
-                                                ? 'border-destructive/50 focus:border-destructive bg-destructive/5'
-                                                : formData.confirmPassword.length > 0 && passwordCriteria.match
-                                                    ? 'border-green-500/50 focus:border-green-500 bg-green-500/5'
-                                                    : 'border-border bg-muted/30 focus:bg-background focus:border-primary/50'
+                                            ? 'border-destructive/50 focus:border-destructive bg-destructive/5'
+                                            : formData.confirmPassword.length > 0 && passwordCriteria.match
+                                                ? 'border-green-500/50 focus:border-green-500 bg-green-500/5'
+                                                : 'border-border bg-muted/30 focus:bg-background focus:border-primary/50'
                                             }`}
                                         placeholder="••••••"
                                         value={formData.confirmPassword}

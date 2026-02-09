@@ -4,6 +4,7 @@ import { Mail, ArrowLeft, ShieldCheck, ArrowRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import api from '../../config/api';
+import Logo from '../../components/common/Logo';
 
 const ForgotPassword = () => {
     const [email, setEmail] = useState('');
@@ -52,6 +53,10 @@ const ForgotPassword = () => {
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.6 }}
                     >
+                        <Link to="/" className="group mb-12 block">
+                            <Logo className="w-auto h-12 justify-center" />
+                        </Link>
+
                         <div className="w-20 h-20 rounded-3xl bg-primary/20 flex items-center justify-center mx-auto mb-8">
                             <ShieldCheck className="w-10 h-10 text-primary" />
                         </div>
@@ -70,6 +75,11 @@ const ForgotPassword = () => {
             {/* Right Side - Form */}
             <div className="w-full lg:w-1/2 flex items-center justify-center p-6 bg-background">
                 <div className="w-full max-w-md">
+                    {/* Logo - Centered for Mobile */}
+                    <div className="flex justify-center lg:hidden mb-10">
+                        <Logo className="w-auto h-12" />
+                    </div>
+
                     <div className="text-center lg:text-left mb-8">
                         <Link to="/login" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6 transition-colors">
                             <ArrowLeft className="w-4 h-4" />
