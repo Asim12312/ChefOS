@@ -1,5 +1,5 @@
 {
-  "name": "tablefy",
+  "name": "chefos",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -10,6 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@paddle/paddle-js": "^1.6.2",
     "@react-three/drei": "^9.92.7",
     "@react-three/fiber": "^8.15.12",
     "@stripe/react-stripe-js": "^2.4.0",
@@ -19,7 +20,9 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "framer-motion": "^10.18.0",
+    "html2canvas": "^1.4.1",
     "html5-qrcode": "^2.3.8",
+    "jspdf": "^4.1.0",
     "lucide-react": "^0.303.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
@@ -45,7 +48,8 @@
     "globals": "^16.5.0",
     "postcss": "^8.5.6",
     "tailwindcss": "^4.1.18",
-    "vite": "^7.2.4"
+    "vite": "^7.2.4",
+    "vite-plugin-pwa": "^1.2.0"
   },
   "overrides": {
     "react": "$react",

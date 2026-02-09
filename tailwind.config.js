@@ -18,8 +18,8 @@ export default {
         },
         extend: {
             fontFamily: {
-                sans: ['Inter', 'system-ui', 'sans-serif'],
-                display: ['Playfair Display', 'Georgia', 'serif'],
+                sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+                display: ['Plus Jakarta Sans', 'Inter', 'sans-serif'],
             },
             colors: {
                 border: "hsl(var(--border))",
