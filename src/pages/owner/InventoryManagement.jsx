@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Save, AlertTriangle, CheckCircle, Search, RefreshCw, XCircle, Plus, Filter, TrendingDown, TrendingUp, Package, DollarSign, Truck, Trash2, Edit2, MoreVertical } from 'lucide-react';
+import { Save, AlertTriangle, CheckCircle, Search, RefreshCw, XCircle, X, Plus, Filter, TrendingDown, TrendingUp, Package, DollarSign, Truck, Trash2, Edit2, MoreVertical } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import api from '../../config/api';
@@ -19,8 +19,22 @@ const InventoryManagement = () => {
     // Modal States
     const [showAddItemModal, setShowAddItemModal] = useState(false);
     const [showStockModal, setShowStockModal] = useState(false);
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [selectedItem, setSelectedItem] = useState(null);
     const [stockAdjustment, setStockAdjustment] = useState({ type: 'restock', quantity: 0, reason: '' });
+
+    const [newItem, setNewItem] = useState({
+        name: '',
+        sku: '',
+        category: 'Produce',
+        stockQuantity: 0,
+        lowStockThreshold: 10,
+        maxStock: 100,
+        unit: 'kg',
+        costPrice: 0,
+        supplier: '',
+        image: ''
+    });
 
     // Constants
     const CATEGORIES = ['Produce', 'Meat', 'Dairy', 'Dry Goods', 'Beverages', 'Spices', 'Packaging', 'Other'];
@@ -36,16 +50,80 @@ const InventoryManagement = () => {
         enabled: !!restaurantId
     });
 
-    // Update Stock Mutation
+    // Add Item Mutation
+    const addItemMutation = useMutation({
+        mutationFn: (data) => api.post('/inventory', data),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['inventory', restaurantId] });
+            toast.success('Item added to inventory');
+            setShowAddItemModal(false);
+            resetNewItem();
+        },
+        onError: (err) => toast.error(err.response?.data?.message || 'Failed to add item')
+    });
+
+    // Edit Item Mutation
+    const editItemMutation = useMutation({
+        mutationFn: (data) => api.put(`/inventory/${data._id}`, data),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['inventory', restaurantId] });
+            toast.success('Item updated successfully');
+            setShowAddItemModal(false);
+            resetNewItem();
+        },
+        onError: (err) => toast.error(err.response?.data?.message || 'Failed to update item')
+    });
+
+    // Delete Item Mutation (Optimistic)
+    const deleteItemMutation = useMutation({
+        mutationFn: (id) => api.delete(`/inventory/${id}`),
+        onMutate: async (id) => {
+            await queryClient.cancelQueries({ queryKey: ['inventory', restaurantId] });
+            const previousInventory = queryClient.getQueryData(['inventory', restaurantId]);
+            queryClient.setQueryData(['inventory', restaurantId], (old) => {
+                if (!old) return [];
+                return old.filter(item => item._id !== id);
+            });
+            return { previousInventory };
+        },
+        onError: (err, variables, context) => {
+            queryClient.setQueryData(['inventory', restaurantId], context.previousInventory);
+            toast.error('Failed to remove item');
+        },
+        onSettled: () => {
+            queryClient.invalidateQueries({ queryKey: ['inventory', restaurantId] });
+        },
+        onSuccess: () => {
+            toast.success('Item removed from inventory');
+        }
+    });
+
+    // Update Stock Mutation (Optimistic)
     const updateStockMutation = useMutation({
         mutationFn: ({ id, quantity, reason }) => api.patch(`/inventory/${id}`, { quantity, reason }),
+        onMutate: async ({ id, quantity }) => {
+            await queryClient.cancelQueries({ queryKey: ['inventory', restaurantId] });
+            const previousInventory = queryClient.getQueryData(['inventory', restaurantId]);
+            queryClient.setQueryData(['inventory', restaurantId], (old) => {
+                if (!old) return [];
+                return old.map(item =>
+                    item._id === id ? { ...item, stockQuantity: quantity, isLowStock: quantity <= item.lowStockThreshold } : item
+                );
+            });
+            return { previousInventory };
+        },
+        onError: (err, variables, context) => {
+            queryClient.setQueryData(['inventory', restaurantId], context.previousInventory);
+            toast.error('Failed to update stock');
+        },
+        onSettled: () => {
+            queryClient.invalidateQueries({ queryKey: ['inventory', restaurantId] });
+        },
         onSuccess: () => {
-            queryClient.invalidateQueries(['inventory']);
             toast.success('Stock updated successfully');
             setShowStockModal(false);
             setStockAdjustment({ type: 'restock', quantity: 0, reason: '' });
-        },
-        onError: (err) => toast.error('Failed to update stock')
+        }
     });
 
     const handleStockSubmit = (e) => {
@@ -73,6 +151,48 @@ const InventoryManagement = () => {
         });
     };
 
+    const handleAddItem = (e) => {
+        e.preventDefault();
+        if (newItem._id) {
+            editItemMutation.mutate(newItem);
+        } else {
+            addItemMutation.mutate(newItem);
+        }
+    };
+
+    const handleDeleteItem = () => {
+        if (selectedItem) {
+            deleteItemMutation.mutate(selectedItem._id);
+            setShowDeleteModal(false);
+            setSelectedItem(null);
+        }
+    };
+
+    const openDeleteModal = (item) => {
+        setSelectedItem(item);
+        setShowDeleteModal(true);
+    };
+
+    const resetNewItem = () => {
+        setNewItem({
+            name: '',
+            sku: '',
+            category: 'Produce',
+            stockQuantity: 0,
+            lowStockThreshold: 10,
+            maxStock: 100,
+            unit: 'kg',
+            costPrice: 0,
+            supplier: '',
+            image: ''
+        });
+    };
+
+    const openEditModal = (item) => {
+        setNewItem(item);
+        setShowAddItemModal(true);
+    };
+
     const openStockModal = (item, type = 'restock') => {
         setSelectedItem(item);
         setStockAdjustment({ type, quantity: 0, reason: '' });
@@ -89,17 +209,23 @@ const InventoryManagement = () => {
     // Stats
     const stats = {
         totalItems: inventory?.length || 0,
-        lowStock: inventory?.filter(i => i.isLowStock).length || 0,
-        totalValue: inventory?.reduce((acc, item) => acc + (item.stockQuantity * (item.costPrice || 0)), 0) || 0,
+        lowStock: inventory?.filter(i => i.stockQuantity <= i.lowStockThreshold).length || 0,
+        totalValue: Math.round(inventory?.reduce((acc, item) => acc + (item.stockQuantity * (item.costPrice || 0)), 0) || 0),
         outOfStock: inventory?.filter(i => i.stockQuantity === 0).length || 0
     };
 
     return (
         <div className="flex bg-background min-h-screen text-foreground font-sans selection:bg-primary/30 transition-colors duration-300">
-            <Sidebar className={mobileMenuOpen ? "flex fixed inset-y-0 left-0 z-50 w-64 bg-card shadow-2xl" : "hidden lg:flex"} />
+            <Sidebar
+                open={mobileMenuOpen}
+                onClose={() => setMobileMenuOpen(false)}
+            />
 
             {mobileMenuOpen && (
-                <div
+                <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
                     className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 lg:hidden"
                     onClick={() => setMobileMenuOpen(false)}
                 />
@@ -130,244 +256,271 @@ const InventoryManagement = () => {
                         </button>
                     </div>
 
-                    {/* Stats Cards */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    {/* Stats Carousel */}
+                    <div className="flex gap-4 overflow-x-auto pb-6 snap-x snap-mandatory carousel-scrollbar -mx-4 px-4 lg:mx-0 lg:px-0 lg:grid lg:grid-cols-4 lg:pb-0 mb-8">
                         {[
                             { label: 'Total Items', value: stats.totalItems, icon: Package, color: 'text-blue-500', bg: 'bg-blue-500/10' },
-                            { label: 'Low Stock Alerts', value: stats.lowStock, icon: AlertTriangle, color: 'text-yellow-500', bg: 'bg-yellow-500/10' },
+                            { label: 'Low Stock', value: stats.lowStock, icon: AlertTriangle, color: 'text-yellow-500', bg: 'bg-yellow-500/10' },
                             { label: 'Out of Stock', value: stats.outOfStock, icon: XCircle, color: 'text-red-500', bg: 'bg-red-500/10' },
-                            { label: 'Est. Value', value: `$${stats.totalValue.toLocaleString()}`, icon: DollarSign, color: 'text-green-500', bg: 'bg-green-500/10' },
+                            { label: 'Est. Value', value: `$${stats.totalValue.toLocaleString()}`, icon: DollarSign, color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
                         ].map((stat, i) => (
-                            <div key={i} className="bg-card border border-border/50 rounded-xl p-4 flex items-center gap-4 shadow-sm">
-                                <div className={`p-3 rounded-lg ${stat.bg} ${stat.color}`}>
-                                    <stat.icon size={20} />
+                            <div key={i} className="min-w-[240px] lg:min-w-0 snap-center bg-card/50 backdrop-blur-md border border-border/50 rounded-2xl p-5 flex items-center gap-5 shadow-sm transition-all hover:shadow-md">
+                                <div className={`p-4 rounded-xl ${stat.bg} ${stat.color} shadow-inner`}>
+                                    <stat.icon size={22} strokeWidth={2.5} />
                                 </div>
                                 <div>
-                                    <p className="text-2xl font-bold text-foreground">{stat.value}</p>
-                                    <p className="text-xs text-muted-foreground font-medium">{stat.label}</p>
+                                    <p className="text-3xl font-black text-foreground tracking-tight">{stat.value}</p>
+                                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">{stat.label}</p>
                                 </div>
                             </div>
                         ))}
                     </div>
 
                     {/* Filters & Search */}
-                    <div className="bg-card border border-border/50 rounded-xl p-4 mb-6 flex flex-col md:flex-row gap-4 items-center justify-between shadow-sm">
-                        <div className="relative w-full md:w-96">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
+                    <div className="flex flex-col gap-4 mb-8 bg-card border-4 border-border p-5 rounded-[2rem] shadow-2xl relative overflow-hidden group">
+                        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-50" />
+                        <div className="relative flex-1">
+                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" size={20} />
                             <input
                                 type="text"
-                                placeholder="Search by name, SKU..."
-                                className="input w-full pl-10"
+                                placeholder="Search inventory..."
+                                className="input pl-12 w-full bg-muted/30 border-none shadow-inner py-4 font-bold text-foreground placeholder:text-muted-foreground/50"
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                             />
                         </div>
-                        <div className="flex gap-2 w-full md:w-auto">
-                            <div className="flex items-center gap-2 px-3 py-2 bg-muted/20 rounded-lg text-sm font-medium text-foreground whitespace-nowrap">
-                                <Filter size={16} />
-                                Filter:
-                            </div>
-                            <select
-                                value={filterCategory}
-                                onChange={(e) => setFilterCategory(e.target.value)}
-                                className="input text-sm py-2 px-3 min-w-[140px]"
-                            >
-                                <option value="All">All Categories</option>
-                                {CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
-                            </select>
+                        <div className="flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory carousel-scrollbar touch-pan-x -mx-2 px-2 relative">
+                            {['All', ...CATEGORIES].map(cat => (
+                                <button
+                                    key={cat}
+                                    onClick={() => setFilterCategory(cat)}
+                                    className={`px-7 py-3 rounded-2xl text-[10px] whitespace-nowrap transition-all font-black uppercase tracking-widest snap-center border-4 ${filterCategory === cat
+                                        ? 'bg-primary text-primary-foreground border-primary shadow-[0_10px_25px_-5px_rgba(234,179,8,0.4)]'
+                                        : 'bg-muted/50 border-transparent text-muted-foreground hover:text-foreground hover:bg-muted'
+                                        }`}
+                                >
+                                    {cat}
+                                </button>
+                            ))}
                         </div>
                     </div>
 
-                    {/* Inventory Table */}
-                    <div className="bg-card border border-border/50 rounded-xl overflow-hidden shadow-sm">
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-left border-collapse">
-                                <thead>
-                                    <tr className="bg-muted/10 border-b border-border">
-                                        <th className="p-4 font-semibold text-sm text-muted-foreground">Item Details</th>
-                                        <th className="p-4 font-semibold text-sm text-muted-foreground">Category</th>
-                                        <th className="p-4 font-semibold text-sm text-muted-foreground">Stock Status</th>
-                                        <th className="p-4 font-semibold text-sm text-muted-foreground">Supplier</th>
-                                        <th className="p-4 font-semibold text-sm text-muted-foreground">Value</th>
-                                        <th className="p-4 font-semibold text-sm text-muted-foreground text-right">Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {isLoading ? (
-                                        <tr>
-                                            <td colSpan="6" className="p-8 text-center">
-                                                <RefreshCw className="animate-spin mx-auto text-primary" size={24} />
-                                            </td>
-                                        </tr>
-                                    ) : filteredItems?.length === 0 ? (
-                                        <tr>
-                                            <td colSpan="6" className="p-12 text-center text-muted-foreground">
-                                                No items found matching your criteria.
-                                            </td>
-                                        </tr>
-                                    ) : (
-                                        <AnimatePresence>
-                                            {filteredItems?.map((item) => (
-                                                <motion.tr
-                                                    key={item._id}
-                                                    initial={{ opacity: 0 }}
-                                                    animate={{ opacity: 1 }}
-                                                    exit={{ opacity: 0 }}
-                                                    className={`border-b border-border/50 hover:bg-muted/5 transition-colors group ${item.stockQuantity === 0 ? 'bg-red-500/5' : ''}`}
-                                                >
-                                                    <td className="p-4">
-                                                        <div className="flex items-center gap-3">
-                                                            <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center overflow-hidden">
-                                                                {item.image ? (
-                                                                    <img src={item.image} alt="" className="w-full h-full object-cover" />
-                                                                ) : (
-                                                                    <Package size={20} className="text-muted-foreground" />
-                                                                )}
-                                                            </div>
-                                                            <div>
-                                                                <p className="font-medium text-foreground">{item.name}</p>
-                                                                <p className="text-xs text-muted-foreground">SKU: {item.sku || 'N/A'}</p>
-                                                            </div>
-                                                        </div>
-                                                    </td>
-                                                    <td className="p-4">
-                                                        <span className="px-2 py-1 rounded-md bg-muted/20 text-xs font-medium text-foreground">
-                                                            {item.category || 'Uncategorized'}
-                                                        </span>
-                                                    </td>
-                                                    <td className="p-4">
-                                                        <div className="flex flex-col gap-1">
-                                                            <div className="flex items-center gap-2">
-                                                                <span className={`text-sm font-bold ${item.stockQuantity === 0 ? 'text-red-500' :
-                                                                    item.isLowStock ? 'text-yellow-500' : 'text-green-500'
-                                                                    }`}>
-                                                                    {item.stockQuantity} {item.unit || 'units'}
-                                                                </span>
-                                                                {item.isLowStock && (
-                                                                    <AlertTriangle size={14} className="text-yellow-500" />
-                                                                )}
-                                                            </div>
-                                                            <div className="w-24 h-1.5 bg-muted rounded-full overflow-hidden">
-                                                                <div
-                                                                    className={`h-full rounded-full ${item.stockQuantity === 0 ? 'bg-red-500' :
-                                                                        item.isLowStock ? 'bg-yellow-500' : 'bg-green-500'
-                                                                        }`}
-                                                                    style={{ width: `${Math.min((item.stockQuantity / (item.maxStock || 100)) * 100, 100)}%` }}
-                                                                />
-                                                            </div>
-                                                        </div>
-                                                    </td>
-                                                    <td className="p-4 text-sm text-foreground">
-                                                        {item.supplier ? (
-                                                            <div className="flex items-center gap-1.5">
-                                                                <Truck size={14} className="text-muted-foreground" />
-                                                                {item.supplier}
-                                                            </div>
-                                                        ) : (
-                                                            <span className="text-muted-foreground text-xs italic">No Supplier</span>
-                                                        )}
-                                                    </td>
-                                                    <td className="p-4 text-sm font-mono text-foreground">
-                                                        ${(item.costPrice || 0).toFixed(2)}
-                                                    </td>
-                                                    <td className="p-4 text-right">
-                                                        <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                            <button
-                                                                onClick={() => openStockModal(item, 'restock')}
-                                                                className="p-1.5 hover:bg-green-500/10 rounded-md text-muted-foreground hover:text-green-500 transition-colors"
-                                                                title="Restock"
-                                                            >
-                                                                <TrendingUp size={16} />
-                                                            </button>
-                                                            <button
-                                                                onClick={() => openStockModal(item, 'waste')}
-                                                                className="p-1.5 hover:bg-red-500/10 rounded-md text-muted-foreground hover:text-red-500 transition-colors"
-                                                                title="Record Waste"
-                                                            >
-                                                                <Trash2 size={16} />
-                                                            </button>
-                                                            <button
-                                                                className="p-1.5 hover:bg-muted rounded-md text-muted-foreground hover:text-foreground transition-colors"
-                                                                title="Edit Details"
-                                                            >
-                                                                <Edit2 size={16} />
-                                                            </button>
-                                                        </div>
-                                                    </td>
-                                                </motion.tr>
-                                            ))}
-                                        </AnimatePresence>
-                                    )}
-                                </tbody>
-                            </table>
+                    {/* Inventory Items */}
+                    {isLoading ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {[1, 2, 3, 4, 5, 6].map(i => (
+                                <div key={i} className="h-48 rounded-2xl bg-muted/20 animate-pulse"></div>
+                            ))}
                         </div>
-                    </div>
+                    ) : filteredItems?.length === 0 ? (
+                        <div className="text-center py-20 bg-muted/10 rounded-2xl border border-dashed border-border">
+                            <Package size={48} className="mx-auto text-muted-foreground mb-4 opacity-50" />
+                            <h3 className="text-xl font-bold text-foreground mb-2">No Items Found</h3>
+                            <p className="text-muted-foreground mb-6">Adjust filters or add a new inventory item.</p>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                            <AnimatePresence>
+                                {filteredItems?.map((item) => (
+                                    <motion.div
+                                        key={item._id}
+                                        layout
+                                        initial={{ opacity: 0, scale: 0.95 }}
+                                        animate={{ opacity: 1, scale: 1 }}
+                                        exit={{ opacity: 0, scale: 0.95 }}
+                                        className={`relative group rounded-[2.5rem] p-8 border-4 lg:border-[10px] shadow-2xl transition-all duration-500 hover:shadow-[0_30px_60px_-15px_rgba(0,0,0,0.3)] overflow-hidden ${item.stockQuantity === 0 ? 'bg-red-500/5 border-red-500/60' :
+                                            item.isLowStock ? 'bg-yellow-500/5 border-yellow-500/60' :
+                                                'bg-card border-border hover:border-primary'
+                                            }`}
+                                    >
+                                        <div className="flex justify-between items-start mb-6 relative z-10">
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center overflow-hidden border-2 border-border/50 shadow-inner">
+                                                    {item.image ? (
+                                                        <img src={item.image} alt="" className="w-full h-full object-cover" />
+                                                    ) : (
+                                                        <Package size={28} className="text-muted-foreground/40" />
+                                                    )}
+                                                </div>
+                                                <div>
+                                                    <h3 className="font-black text-xl text-foreground tracking-tight">{item.name}</h3>
+                                                    <div className="flex items-center gap-2 mt-1">
+                                                        <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">{item.category}</span>
+                                                        <span className="w-1 h-1 rounded-full bg-border" />
+                                                        <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">SKU: {item.sku || 'N/A'}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div className="flex flex-col items-end">
+                                                <span className="text-lg font-black text-foreground">${(item.costPrice || 0).toFixed(2)}</span>
+                                                <span className="text-[8px] font-black uppercase text-muted-foreground tracking-widest">Unit Cost</span>
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-4 relative z-10">
+                                            <div className="flex justify-between items-center bg-background/40 backdrop-blur-md p-3 rounded-2xl border border-border/30">
+                                                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Stock Status</span>
+                                                <div className="flex items-center gap-2">
+                                                    {item.isLowStock && <AlertTriangle size={14} className="text-yellow-500" />}
+                                                    <span className={`text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest ${item.stockQuantity === 0 ? 'bg-red-500 text-white shadow-lg shadow-red-500/20' :
+                                                        item.isLowStock ? 'bg-yellow-500 text-black shadow-lg shadow-yellow-500/20' :
+                                                            'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20'
+                                                        }`}>
+                                                        {item.stockQuantity === 0 ? 'Out of Stock' : item.isLowStock ? 'Low Stock' : 'In Stock'}
+                                                    </span>
+                                                </div>
+                                            </div>
+
+                                            <div className="bg-foreground/5 p-4 rounded-2xl border border-border/10 space-y-3">
+                                                <div className="flex justify-between items-end">
+                                                    <span className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Availability</span>
+                                                    <span className="text-sm font-black text-foreground">{item.stockQuantity} / {item.maxStock || 100} {item.unit || 'Units'}</span>
+                                                </div>
+                                                <div className="w-full h-3 bg-muted/50 rounded-full overflow-hidden border border-border/20">
+                                                    <motion.div
+                                                        initial={{ width: 0 }}
+                                                        animate={{ width: `${Math.min((item.stockQuantity / (item.maxStock || 100)) * 100, 100)}%` }}
+                                                        transition={{ duration: 1, ease: "easeOut" }}
+                                                        className={`h-full rounded-full ${item.stockQuantity === 0 ? 'bg-red-500' :
+                                                            item.isLowStock ? 'bg-yellow-500' : 'bg-emerald-500'
+                                                            }`}
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            <div className="flex items-center gap-2 p-3 bg-muted/20 rounded-2xl border border-border/10">
+                                                <Truck size={14} className="text-muted-foreground" />
+                                                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/80">Supplier: {item.supplier || 'Not Assigned'}</span>
+                                            </div>
+                                        </div>
+
+                                        {/* Actions */}
+                                        <div className="mt-6 pt-6 border-t border-border/30 grid grid-cols-2 gap-3 relative z-10">
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    openStockModal(item, 'restock');
+                                                }}
+                                                className="py-3 bg-emerald-500/10 text-emerald-600 font-black text-[10px] uppercase tracking-widest border-2 border-emerald-500/20 rounded-2xl hover:bg-emerald-500/20 transition-all active:scale-95 flex items-center justify-center gap-2 group/btn"
+                                            >
+                                                <TrendingUp size={14} strokeWidth={3} className="group-hover/btn:scale-110 transition-transform" /> Restock
+                                            </button>
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    openStockModal(item, 'waste');
+                                                }}
+                                                className="py-3 bg-red-500/10 text-red-600 font-black text-[10px] uppercase tracking-widest border-2 border-red-500/20 rounded-2xl hover:bg-red-500/20 transition-all active:scale-95 flex items-center justify-center gap-2 group/btn"
+                                            >
+                                                <TrendingDown size={14} strokeWidth={3} className="group-hover/btn:scale-110 transition-transform" /> Waste
+                                            </button>
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    openEditModal(item);
+                                                }}
+                                                className="py-3 bg-muted/30 text-muted-foreground/60 font-black text-[9px] uppercase tracking-widest border-2 border-transparent rounded-2xl hover:text-foreground hover:border-border transition-all active:scale-95 mt-2"
+                                            >
+                                                Edit Item Details
+                                            </button>
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    openDeleteModal(item);
+                                                }}
+                                                className="py-3 bg-red-500/5 text-red-500/40 font-black text-[9px] uppercase tracking-widest border-2 border-transparent rounded-2xl hover:bg-red-500/10 hover:text-red-500 transition-all active:scale-95 mt-2"
+                                            >
+                                                Delete Item
+                                            </button>
+                                        </div>
+                                    </motion.div>
+                                ))}
+                            </AnimatePresence>
+                        </div>
+                    )}
                 </main>
             </div>
 
             {/* Stock Adjustment Modal */}
             <AnimatePresence>
                 {showStockModal && selectedItem && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-md">
                         <motion.div
-                            initial={{ opacity: 0, scale: 0.95 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.95 }}
-                            className="bg-card border border-border rounded-xl w-full max-w-sm shadow-2xl p-6"
+                            initial={{ opacity: 0, y: "100%" }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: "100%" }}
+                            transition={{ type: "spring", damping: 25, stiffness: 200 }}
+                            className="bg-card w-full max-w-lg h-full sm:h-auto sm:rounded-3xl shadow-2xl overflow-hidden border border-border/50 flex flex-col"
                         >
-                            <h3 className="text-lg font-bold mb-1 text-foreground">
-                                {stockAdjustment.type === 'restock' ? 'Restock Item' : 'Record Waste'}
-                            </h3>
-                            <p className="text-sm text-muted-foreground mb-6">
-                                {selectedItem.name} (Current: {selectedItem.stockQuantity})
-                            </p>
-
-                            <form onSubmit={handleStockSubmit} className="space-y-4">
+                            <div className="p-6 border-b border-border/50 flex justify-between items-center bg-card/80 backdrop-blur-md">
                                 <div>
-                                    <label className="text-sm font-medium mb-1.5 block text-foreground">Quantity</label>
+                                    <h3 className="text-2xl font-black text-foreground tracking-tight">
+                                        {stockAdjustment.type === 'restock' ? 'Restock Item' : 'Record Waste'}
+                                    </h3>
+                                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
+                                        {selectedItem.name} • SKU: {selectedItem.sku || 'N/A'}
+                                    </p>
+                                </div>
+                                <button onClick={() => setShowStockModal(false)} className="bg-muted/50 text-foreground hover:bg-muted p-2.5 rounded-2xl transition-all active:scale-90">
+                                    <X size={24} strokeWidth={2.5} />
+                                </button>
+                            </div>
+
+                            <form onSubmit={handleStockSubmit} className="p-6 md:p-8 space-y-8 flex-1 overflow-y-auto">
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Quantity ({selectedItem.unit || 'Units'})</label>
                                     <input
                                         type="number"
                                         min="1"
                                         value={stockAdjustment.quantity}
                                         onChange={(e) => setStockAdjustment({ ...stockAdjustment, quantity: e.target.value })}
-                                        className="input w-full"
+                                        className="input w-full bg-muted/30 border-2 border-transparent focus:border-primary/50 transition-all font-bold py-4 text-lg"
+                                        placeholder="0"
                                         autoFocus
                                         required
                                     />
                                 </div>
 
                                 {stockAdjustment.type === 'waste' && (
-                                    <div>
-                                        <label className="text-sm font-medium mb-1.5 block text-foreground">Reason</label>
-                                        <select
-                                            value={stockAdjustment.reason}
-                                            onChange={(e) => setStockAdjustment({ ...stockAdjustment, reason: e.target.value })}
-                                            className="input w-full"
-                                            required
-                                        >
-                                            <option value="">Select Reason</option>
-                                            <option value="Spoilage">Spoilage</option>
-                                            <option value="Damage">Damage</option>
-                                            <option value="Theft">Theft</option>
-                                            <option value="Mistake">Kitchen Mistake</option>
-                                            <option value="Other">Other</option>
-                                        </select>
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Reason for Waste</label>
+                                        <div className="relative group">
+                                            <select
+                                                value={stockAdjustment.reason}
+                                                onChange={(e) => setStockAdjustment({ ...stockAdjustment, reason: e.target.value })}
+                                                className="input w-full bg-muted/30 border-2 border-border focus:border-primary transition-all font-bold py-4 px-6 text-foreground appearance-none rounded-2xl cursor-pointer"
+                                                required
+                                            >
+                                                <option value="" className="bg-card text-foreground">Select Reason</option>
+                                                <option value="Spoilage" className="bg-card text-foreground">Spoilage</option>
+                                                <option value="Damage" className="bg-card text-foreground">Damage</option>
+                                                <option value="Theft" className="bg-card text-foreground">Theft</option>
+                                                <option value="Mistake" className="bg-card text-foreground">Kitchen Mistake</option>
+                                                <option value="Other" className="bg-card text-foreground">Other</option>
+                                            </select>
+                                            <div className="absolute right-6 top-1/2 -translate-y-1/2 pointer-events-none text-primary group-focus-within:rotate-180 transition-transform">
+                                                <Plus size={20} className="rotate-45" />
+                                            </div>
+                                        </div>
                                     </div>
                                 )}
 
-                                <div className="flex gap-3 mt-6 pt-4 border-t border-border">
+                                <div className="pt-6 flex gap-4">
                                     <button
                                         type="button"
                                         onClick={() => setShowStockModal(false)}
-                                        className="btn-outline flex-1"
+                                        className="flex-1 py-4 bg-muted/50 text-foreground font-black uppercase tracking-widest rounded-2xl border-2 border-border/50 hover:bg-muted transition-all active:scale-95"
                                     >
                                         Cancel
                                     </button>
                                     <button
                                         type="submit"
-                                        className={`flex-1 btn ${stockAdjustment.type === 'restock' ? 'btn-primary' : 'bg-red-500 hover:bg-red-600 text-white'}`}
+                                        className={`flex-[2] py-4 font-black uppercase tracking-widest rounded-2xl shadow-xl transition-all active:scale-95 ${stockAdjustment.type === 'restock'
+                                            ? 'bg-primary text-primary-foreground shadow-primary/20 hover:brightness-110'
+                                            : 'bg-red-500 text-white shadow-red-500/20 hover:bg-red-600'
+                                            }`}
                                     >
-                                        {stockAdjustment.type === 'restock' ? 'Add Stock' : 'Confirm Waste'}
+                                        {stockAdjustment.type === 'restock' ? 'Update Inventory' : 'Confirm Waste'}
                                     </button>
                                 </div>
                             </form>
@@ -376,8 +529,198 @@ const InventoryManagement = () => {
                 )}
             </AnimatePresence>
 
-            {/* Add Item Modal Placeholder (Simpler version for shortness) */}
-            {/* You can implement full add form here if needed */}
+            {/* Add Item Modal */}
+            <AnimatePresence>
+                {showAddItemModal && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-md">
+                        <motion.div
+                            initial={{ opacity: 0, y: "100%" }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: "100%" }}
+                            transition={{ type: "spring", damping: 25, stiffness: 200 }}
+                            className="bg-card w-full max-w-2xl h-full sm:h-auto sm:max-h-[90vh] sm:rounded-3xl shadow-2xl overflow-hidden border border-border/50 flex flex-col"
+                        >
+                            <div className="p-6 border-b border-border/50 flex justify-between items-center bg-card/80 backdrop-blur-md">
+                                <div>
+                                    <h3 className="text-2xl font-black text-foreground tracking-tight">
+                                        {newItem._id ? 'Edit Item' : 'Add New Item'}
+                                    </h3>
+                                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
+                                        {newItem._id ? `Updating ${newItem.name}` : 'Update your stock supplies'}
+                                    </p>
+                                </div>
+                                <button
+                                    onClick={() => {
+                                        setShowAddItemModal(false);
+                                        resetNewItem();
+                                    }}
+                                    className="bg-muted/50 text-foreground hover:bg-muted p-2.5 rounded-2xl transition-all active:scale-90"
+                                >
+                                    <XCircle size={24} strokeWidth={2.5} />
+                                </button>
+                            </div>
+
+                            <form onSubmit={handleAddItem} className="p-6 md:p-8 space-y-6 flex-1 overflow-y-auto custom-scrollbar">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Item Name</label>
+                                        <input
+                                            type="text"
+                                            value={newItem.name}
+                                            onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
+                                            className="input w-full bg-muted/30 border-2 border-transparent focus:border-primary/50 transition-all font-bold py-4"
+                                            placeholder="e.g. Fresh Tomatoes"
+                                            required
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">SKU / Code</label>
+                                        <input
+                                            type="text"
+                                            value={newItem.sku}
+                                            onChange={(e) => setNewItem({ ...newItem, sku: e.target.value })}
+                                            className="input w-full bg-muted/30 border-2 border-transparent focus:border-primary/50 transition-all font-bold py-4"
+                                            placeholder="SKU-001"
+                                        />
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Category</label>
+                                        <select
+                                            value={newItem.category}
+                                            onChange={(e) => setNewItem({ ...newItem, category: e.target.value })}
+                                            className="input w-full bg-muted/30 border-2 border-border focus:border-primary font-bold py-4 px-6 text-foreground appearance-none rounded-2xl"
+                                        >
+                                            {CATEGORIES.map(cat => (
+                                                <option key={cat} value={cat} className="bg-card text-foreground">{cat}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Unit</label>
+                                        <input
+                                            type="text"
+                                            value={newItem.unit}
+                                            onChange={(e) => setNewItem({ ...newItem, unit: e.target.value })}
+                                            className="input w-full bg-muted/30 border-2 border-transparent focus:border-primary/50 transition-all font-bold py-4"
+                                            placeholder="kg, liter, pcs, etc."
+                                        />
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Current Stock</label>
+                                        <input
+                                            type="number"
+                                            value={newItem.stockQuantity}
+                                            onChange={(e) => setNewItem({ ...newItem, stockQuantity: parseInt(e.target.value) })}
+                                            className="input w-full bg-muted/30 border-2 border-transparent focus:border-primary/50 transition-all font-bold py-4"
+                                            placeholder="0"
+                                            required
+                                        />
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Low Stock Alert at</label>
+                                        <input
+                                            type="number"
+                                            value={newItem.lowStockThreshold}
+                                            onChange={(e) => setNewItem({ ...newItem, lowStockThreshold: parseInt(e.target.value) })}
+                                            className="input w-full bg-muted/30 border-2 border-transparent focus:border-primary/50 transition-all font-bold py-4"
+                                            placeholder="10"
+                                            required
+                                        />
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Cost Price ($)</label>
+                                        <input
+                                            type="number"
+                                            step="0.01"
+                                            value={newItem.costPrice}
+                                            onChange={(e) => setNewItem({ ...newItem, costPrice: parseFloat(e.target.value) })}
+                                            className="input w-full bg-muted/30 border-2 border-transparent focus:border-primary/50 transition-all font-bold py-4"
+                                            placeholder="0.00"
+                                            required
+                                        />
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Supplier</label>
+                                        <input
+                                            type="text"
+                                            value={newItem.supplier}
+                                            onChange={(e) => setNewItem({ ...newItem, supplier: e.target.value })}
+                                            className="input w-full bg-muted/30 border-2 border-transparent focus:border-primary/50 transition-all font-bold py-4"
+                                            placeholder="Supplier Name"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="pt-6 border-t border-border/50 flex gap-4">
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setShowAddItemModal(false);
+                                            resetNewItem();
+                                        }}
+                                        className="flex-1 py-4 bg-muted/50 text-foreground font-black uppercase tracking-widest rounded-2xl border-2 border-border/50 hover:bg-muted transition-all active:scale-95"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        disabled={addItemMutation.isPending || editItemMutation.isPending}
+                                        className="flex-[2] py-4 bg-primary text-primary-foreground font-black uppercase tracking-widest rounded-2xl shadow-xl shadow-primary/20 hover:brightness-110 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        {addItemMutation.isPending || editItemMutation.isPending ? 'Saving...' : newItem._id ? 'Update Item' : 'Add to Inventory'}
+                                    </button>
+                                </div>
+                            </form>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+            {/* Delete Confirmation Modal */}
+            <AnimatePresence>
+                {showDeleteModal && selectedItem && (
+                    <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-xl">
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                            className="bg-card border-4 border-border w-full max-w-md sm:rounded-[3rem] p-8 shadow-[0_50px_100px_-20px_rgba(0,0,0,0.5)] relative overflow-hidden text-center"
+                        >
+                            <div className="absolute inset-0 bg-gradient-to-b from-red-500/5 to-transparent pointer-events-none" />
+                            <div className="w-20 h-20 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-6 border-4 border-red-500/20 shadow-inner">
+                                <Trash2 size={40} className="text-red-500 animate-pulse" />
+                            </div>
+                            <h3 className="text-3xl font-black text-foreground mb-2 tracking-tight">Are you sure?</h3>
+                            <p className="text-muted-foreground font-medium mb-8 leading-relaxed">
+                                You are about to permanently remove <span className="text-foreground font-black underline decoration-red-500 decoration-4 underline-offset-4">{selectedItem.name}</span> from your inventory. This action cannot be undone.
+                            </p>
+                            <div className="flex flex-col sm:flex-row gap-3">
+                                <button
+                                    onClick={() => {
+                                        setShowDeleteModal(false);
+                                        setSelectedItem(null);
+                                    }}
+                                    className="flex-1 py-4 bg-muted/50 text-muted-foreground font-black uppercase tracking-widest rounded-2xl border-4 border-transparent hover:bg-muted hover:text-foreground transition-all active:scale-95"
+                                >
+                                    No, Keep it
+                                </button>
+                                <button
+                                    onClick={handleDeleteItem}
+                                    disabled={deleteItemMutation.isPending}
+                                    className="flex-1 py-4 bg-red-500 text-white font-black uppercase tracking-widest rounded-2xl shadow-[0_20px_40px_-10px_rgba(239,68,68,0.3)] hover:bg-red-600 transition-all active:scale-95 disabled:opacity-50"
+                                >
+                                    {deleteItemMutation.isPending ? 'Removing...' : 'Yes, Delete'}
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
         </div>
     );
 };

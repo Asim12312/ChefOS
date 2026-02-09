@@ -15,6 +15,7 @@ const MenuManagement = () => {
     const [selectedCategory, setSelectedCategory] = useState('All');
     const [editingItem, setEditingItem] = useState(null);
     const [uploading, setUploading] = useState(false);
+    const [uploadedImages, setUploadedImages] = useState([]);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const queryClient = useQueryClient();
     const restaurantId = user?.restaurant?._id || user?.restaurant;
@@ -81,28 +82,12 @@ const MenuManagement = () => {
             price: Number(formData.get('price')),
             category: formData.get('category'),
             stockQuantity: Number(formData.get('stockQuantity')),
-            lowStockThreshold: Number(formData.get('lowStockThreshold')),
-            image: formData.get('image'),
-            video: formData.get('video'),
-            model3D: {
-                glb: formData.get('glbModel'),
-                usdz: formData.get('usdzModel')
-            },
-            dietaryInfo: {
-                isVegetarian: formData.get('isVegetarian') === 'on',
-                isVegan: formData.get('isVegan') === 'on',
-                isGlutenFree: formData.get('isGlutenFree') === 'on',
-                spiceLevel: formData.get('spiceLevel')
-            },
-            // New Features
+            images: uploadedImages,
+            image: uploadedImages[0] || "",
             prepTime: Number(formData.get('prepTime')) || 0,
             nutritionalInfo: {
-                calories: Number(formData.get('calories')) || 0,
-                protein: Number(formData.get('protein')) || 0,
-                carbs: Number(formData.get('carbs')) || 0,
-                fats: Number(formData.get('fats')) || 0
-            },
-            ingredients: formData.get('ingredients').split(',').map(i => i.trim()).filter(i => i)
+                calories: Number(formData.get('calories')) || 0
+            }
         };
 
         if (editingItem) {
@@ -114,6 +99,7 @@ const MenuManagement = () => {
 
     const handleEdit = (item) => {
         setEditingItem(item);
+        setUploadedImages(item.images?.length > 0 ? item.images : item.image ? [item.image] : []);
         setIsModalOpen(true);
     };
 
@@ -123,34 +109,41 @@ const MenuManagement = () => {
         }
     };
 
-    const handleFileUpload = async (e, fieldName) => {
-        const file = e.target.files[0];
-        if (!file) return;
+    const handleFileUpload = async (e) => {
+        const files = Array.from(e.target.files);
+        if (files.length === 0) return;
 
-        const formDataUpload = new FormData();
-        formDataUpload.append('image', file);
+        if (uploadedImages.length + files.length > 4) {
+            toast.error("Maximum 4 images allowed");
+            return;
+        }
 
         setUploading(true);
-        const toastId = toast.loading('Uploading file...');
+        const toastId = toast.loading("Uploading images...");
 
         try {
-            const res = await api.post('/upload/image', formDataUpload, {
-                headers: { 'Content-Type': 'multipart/form-data' }
+            const uploadPromises = files.map(async (file) => {
+                const formDataUpload = new FormData();
+                formDataUpload.append('image', file);
+                const res = await api.post('/upload/image', formDataUpload, {
+                    headers: { 'Content-Type': 'multipart/form-data' }
+                });
+                return res.data.data.url;
             });
 
-            if (res.data.success) {
-                const input = document.querySelector(`input[name="${fieldName}"]`);
-                if (input) {
-                    input.value = res.data.data.url;
-                }
-                toast.success('Upload complete', { id: toastId });
-            }
+            const urls = await Promise.all(uploadPromises);
+            setUploadedImages(prev => [...prev, ...urls]);
+            toast.success('Upload complete', { id: toastId });
         } catch (error) {
             console.error(error);
             toast.error(error.response?.data?.message || 'Upload failed', { id: toastId });
         } finally {
             setUploading(false);
         }
+    };
+
+    const removeImage = (index) => {
+        setUploadedImages(prev => prev.filter((_, i) => i !== index));
     };
 
     // Filtering
@@ -164,10 +157,16 @@ const MenuManagement = () => {
 
     return (
         <div className="flex bg-background min-h-screen text-foreground font-sans selection:bg-primary/30 transition-colors duration-300">
-            <Sidebar className={mobileMenuOpen ? "flex fixed inset-y-0 left-0 z-50 w-64 bg-card shadow-2xl" : "hidden lg:flex"} />
+            <Sidebar
+                open={mobileMenuOpen}
+                onClose={() => setMobileMenuOpen(false)}
+            />
 
             {mobileMenuOpen && (
-                <div
+                <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
                     className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 lg:hidden"
                     onClick={() => setMobileMenuOpen(false)}
                 />
@@ -198,25 +197,26 @@ const MenuManagement = () => {
                     </div>
 
                     {/* Filters */}
-                    <div className="flex flex-col md:flex-row gap-4 mb-8 bg-card border border-border/50 p-4 rounded-xl shadow-sm">
+                    <div className="flex flex-col gap-4 mb-8 bg-card border-4 border-border p-5 rounded-[2rem] shadow-2xl relative overflow-hidden group">
+                        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-50" />
                         <div className="relative flex-1">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={20} />
+                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" size={20} />
                             <input
                                 type="text"
-                                placeholder="Search menu items..."
-                                className="input pl-10 w-full"
+                                placeholder="Search menu favorites..."
+                                className="input pl-12 w-full bg-muted/40 border-none shadow-inner py-4 font-bold text-foreground placeholder:text-muted-foreground/50"
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                             />
                         </div>
-                        <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0 hide-scrollbar">
+                        <div className="flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory carousel-scrollbar touch-pan-x -mx-2 px-2 relative">
                             {categories.map(cat => (
                                 <button
                                     key={cat}
                                     onClick={() => setSelectedCategory(cat)}
-                                    className={`px-4 py-2 rounded-full text-sm whitespace-nowrap transition-all font-medium ${selectedCategory === cat
-                                        ? 'bg-primary text-primary-foreground shadow-md'
-                                        : 'bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground'
+                                    className={`px-7 py-3 rounded-2xl text-[10px] whitespace-nowrap transition-all font-black uppercase tracking-widest snap-center border-4 ${selectedCategory === cat
+                                        ? 'bg-primary text-primary-foreground border-primary shadow-xl shadow-primary/20'
+                                        : 'bg-muted/20 border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/50 hover:border-border'
                                         }`}
                                 >
                                     {cat}
@@ -235,7 +235,7 @@ const MenuManagement = () => {
                     ) : (
                         <motion.div
                             layout
-                            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+                            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
                         >
                             <AnimatePresence>
                                 {filteredItems?.map((item) => (
@@ -245,88 +245,88 @@ const MenuManagement = () => {
                                         initial={{ opacity: 0, scale: 0.95 }}
                                         animate={{ opacity: 1, scale: 1 }}
                                         exit={{ opacity: 0, scale: 0.95 }}
-                                        className="group bg-card border border-border/50 hover:border-border rounded-2xl overflow-hidden hover:shadow-xl transition-all duration-300 flex flex-col"
+                                        className="group bg-card border-4 lg:border-[10px] border-border hover:border-primary/60 rounded-[3rem] overflow-hidden shadow-2xl hover:shadow-[0_40px_80px_-20px_rgba(0,0,0,0.3)] transition-all duration-700 flex flex-col relative"
                                     >
-                                        <div className="relative h-48 bg-muted overflow-hidden">
+                                        <div className="relative h-56 bg-muted overflow-hidden">
                                             {item.image ? (
-                                                <img src={item.image} alt={item.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                                                <img src={item.image} alt={item.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-out" />
                                             ) : (
-                                                <div className="flex items-center justify-center h-full text-muted-foreground">
-                                                    <Box size={40} />
+                                                <div className="flex items-center justify-center h-full text-muted-foreground/30">
+                                                    <Box size={48} strokeWidth={1.5} />
                                                 </div>
                                             )}
-                                            <div className="absolute top-2 right-2 flex flex-col gap-2 items-end">
+
+                                            {/* Status Badge Overlays */}
+                                            <div className="absolute top-3 left-3 flex flex-wrap gap-2 max-w-[80%]">
                                                 {item.isLowStock && (
-                                                    <span className="badge bg-yellow-500/90 text-white border-none shadow-sm flex items-center gap-1">
-                                                        <AlertTriangle size={12} /> Low Stock
+                                                    <span className="bg-red-500 text-white text-[9px] font-black px-2.5 py-1 rounded-full shadow-lg flex items-center gap-1 uppercase tracking-tighter ring-2 ring-white/20">
+                                                        <AlertTriangle size={10} /> Urgent: Low Stock
                                                     </span>
                                                 )}
-                                                <div className="flex gap-1">
+                                                <div className="flex gap-1.5">
                                                     {item.model3D?.glb && (
-                                                        <span className="badge bg-purple-500/90 text-white border-none shadow-sm text-xs">3D</span>
-                                                    )}
-                                                    {item.video && (
-                                                        <span className="badge bg-blue-500/90 text-white border-none shadow-sm text-xs">VIDEO</span>
+                                                        <span className="bg-purple-600/90 backdrop-blur-md text-white px-2 py-0.5 rounded-full font-black text-[9px] border border-white/20 uppercase">3D View</span>
                                                     )}
                                                 </div>
                                             </div>
-                                            <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/80 to-transparent">
-                                                <div className="flex justify-between items-end">
-                                                    <h3 className="font-bold text-lg text-white truncate shadow-black drop-shadow-md">{item.name}</h3>
-                                                    <span className="text-primary-foreground bg-primary px-2 py-0.5 rounded-md font-bold text-sm shadow-sm">${item.price}</span>
+
+                                            <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/90 via-black/40 to-transparent">
+                                                <div className="flex justify-between items-end gap-2">
+                                                    <h3 className="font-black text-xl text-white leading-tight tracking-tight drop-shadow-lg truncate">{item.name}</h3>
+                                                    <span className="text-primary-foreground bg-primary px-3 py-1 rounded-xl font-black text-xs shadow-xl ring-2 ring-primary/20 flex-shrink-0">${parseFloat(item.price).toFixed(2)}</span>
                                                 </div>
                                             </div>
                                         </div>
 
-                                        <div className="p-4 flex-1 flex flex-col gap-3">
-                                            <p className="text-sm text-muted-foreground line-clamp-2 min-h-[2.5em]">{item.description}</p>
+                                        <div className="p-5 flex-1 flex flex-col gap-4">
+                                            <p className="text-sm font-medium text-muted-foreground/80 line-clamp-2 leading-relaxed min-h-[2.8em]">{item.description || 'No description provided.'}</p>
 
-                                            <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
-                                                <div className="flex items-center gap-1.5 bg-muted/30 p-1.5 rounded-md">
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <div className="flex items-center gap-2 bg-muted/20 p-2 rounded-xl border border-border/20">
                                                     <Clock size={14} className="text-blue-500" />
-                                                    <span>{item.prepTime || 15}m prep</span>
+                                                    <span className="text-[11px] font-black text-foreground uppercase tracking-tighter">{item.prepTime || 15}m Prep</span>
                                                 </div>
-                                                <div className="flex items-center gap-1.5 bg-muted/30 p-1.5 rounded-md">
+                                                <div className="flex items-center gap-2 bg-muted/20 p-2 rounded-xl border border-border/20">
                                                     <Flame size={14} className="text-orange-500" />
-                                                    <span>{item.nutritionalInfo?.calories || 0} kcal</span>
+                                                    <span className="text-[11px] font-black text-foreground uppercase tracking-tighter">{item.nutritionalInfo?.calories || 0} kcal</span>
                                                 </div>
                                             </div>
 
-                                            <div className="flex justify-between items-center bg-muted/30 p-2 rounded-lg text-sm mt-auto">
-                                                <span className="text-muted-foreground">Stock:</span>
-                                                <span className={`font-mono font-bold ${item.stockQuantity === 0 ? 'text-red-500' :
-                                                    item.isLowStock ? 'text-yellow-500' : 'text-green-500'
+                                            <div className="flex justify-between items-center bg-foreground/5 p-3 rounded-xl text-xs font-black uppercase tracking-widest mt-auto border border-border/10">
+                                                <span className="text-muted-foreground/60">Stock Level</span>
+                                                <span className={`${item.stockQuantity === 0 ? 'text-red-500' :
+                                                    item.isLowStock ? 'text-yellow-500' : 'text-emerald-500'
                                                     }`}>
-                                                    {item.stockQuantity}
+                                                    {item.stockQuantity} Units
                                                 </span>
                                             </div>
                                         </div>
 
-                                        <div className="p-3 border-t border-border flex justify-between items-center bg-muted/10">
+                                        <div className="px-5 py-4 border-t border-border/30 flex justify-between items-center bg-muted/5 gap-4">
                                             <button
                                                 onClick={() => toggleAvailabilityMutation.mutate(item._id)}
-                                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${item.isAvailable
-                                                    ? 'bg-green-500/10 text-green-600 hover:bg-green-500/20'
-                                                    : 'bg-red-500/10 text-red-600 hover:bg-red-500/20'
+                                                className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 border-2 ${item.isAvailable
+                                                    ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20 hover:bg-emerald-500/20'
+                                                    : 'bg-red-500/10 text-red-600 border-red-500/20 hover:bg-red-500/20'
                                                     }`}
                                             >
-                                                {item.isAvailable ? <><CheckCircle size={14} /> Available</> : <><XCircle size={14} /> Unavailable</>}
+                                                {item.isAvailable ? <><CheckCircle size={14} strokeWidth={3} /> Active</> : <><XCircle size={14} strokeWidth={3} /> Hidden</>}
                                             </button>
 
-                                            <div className="flex gap-1">
+                                            <div className="flex gap-2">
                                                 <button
                                                     onClick={() => handleEdit(item)}
-                                                    className="p-2 text-blue-500 hover:bg-blue-500/10 rounded-lg transition-colors"
+                                                    className="p-2.5 bg-blue-500/10 text-blue-600 hover:bg-blue-500/20 border-2 border-blue-500/20 rounded-xl transition-all active:scale-90"
                                                     title="Edit"
                                                 >
-                                                    <Edit size={18} />
+                                                    <Edit size={18} strokeWidth={2.5} />
                                                 </button>
                                                 <button
                                                     onClick={() => handleDelete(item._id)}
-                                                    className="p-2 text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
+                                                    className="p-2.5 bg-red-500/10 text-red-600 hover:bg-red-500/20 border-2 border-red-500/20 rounded-xl transition-all active:scale-90"
                                                     title="Delete"
                                                 >
-                                                    <Trash2 size={18} />
+                                                    <Trash2 size={18} strokeWidth={2.5} />
                                                 </button>
                                             </div>
                                         </div>
@@ -355,189 +355,156 @@ const MenuManagement = () => {
                         </div>
                     )}
 
-                    {/* Form Modal */}
                     <AnimatePresence>
                         {isModalOpen && (
-                            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                            <div className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-md">
                                 <motion.div
-                                    initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                                    exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                                    className="bg-card border border-border rounded-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto shadow-2xl flex flex-col"
+                                    initial={{ opacity: 0, y: "100%" }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: "100%" }}
+                                    transition={{ type: "spring", damping: 25, stiffness: 200 }}
+                                    className="bg-card w-full max-w-4xl h-full sm:h-auto sm:max-h-[90vh] sm:rounded-3xl overflow-hidden shadow-2xl flex flex-col border border-border/50"
                                 >
-                                    <div className="p-6 border-b border-border flex justify-between items-center sticky top-0 bg-card z-10">
+                                    <div className="p-6 border-b border-border/50 flex justify-between items-center bg-card/80 backdrop-blur-md z-11">
                                         <div>
-                                            <h3 className="text-xl font-bold text-foreground">{editingItem ? 'Edit Item' : 'Add New Item'}</h3>
-                                            <p className="text-sm text-muted-foreground">Fill in the details for your menu item</p>
+                                            <h3 className="text-2xl font-black text-foreground tracking-tight">{editingItem ? 'Edit Item' : 'New Creation'}</h3>
+                                            <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">{editingItem ? 'Refine your menu details' : 'Add another masterpiece'}</p>
                                         </div>
-                                        <button onClick={() => setIsModalOpen(false)} className="text-muted-foreground hover:text-foreground transition-colors p-2 hover:bg-muted rounded-lg">
-                                            <XCircle size={24} />
+                                        <button onClick={() => setIsModalOpen(false)} className="bg-muted/50 text-foreground hover:bg-muted p-2.5 rounded-2xl transition-all active:scale-90">
+                                            <XCircle size={24} strokeWidth={2.5} />
                                         </button>
                                     </div>
 
-                                    <form onSubmit={handleSubmit} className="p-6 space-y-8">
-                                        {/* Basic Info Section */}
-                                        <div className="space-y-4">
-                                            <h4 className="text-sm font-bold uppercase tracking-wider text-muted-foreground border-b border-border pb-2 mb-4">Basic Information</h4>
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                                <div className="form-group md:col-span-2">
-                                                    <label className="block text-sm font-medium mb-1.5 text-foreground">Item Name</label>
-                                                    <input name="name" defaultValue={editingItem?.name} required className="input w-full" placeholder="e.g. Truffle Burger" />
-                                                </div>
-
-                                                <div className="form-group md:col-span-2">
-                                                    <label className="block text-sm font-medium mb-1.5 text-foreground">Description</label>
-                                                    <textarea name="description" defaultValue={editingItem?.description} className="input w-full h-24 resize-none" placeholder="Describe the dish..." />
-                                                </div>
-
-                                                <div className="form-group">
-                                                    <label className="block text-sm font-medium mb-1.5 text-foreground">Price ($)</label>
-                                                    <div className="relative">
-                                                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
-                                                        <input type="number" name="price" defaultValue={editingItem?.price} required min="0" step="0.01" className="input w-full pl-7" placeholder="0.00" />
-                                                    </div>
-                                                </div>
-
-                                                <div className="form-group">
-                                                    <label className="block text-sm font-medium mb-1.5 text-foreground">Category</label>
-                                                    <select name="category" defaultValue={editingItem?.category || 'Main Course'} className="input w-full">
-                                                        {categories.filter(c => c !== 'All').map(c => (
-                                                            <option key={c} value={c}>{c}</option>
-                                                        ))}
-                                                    </select>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        {/* Media Section */}
-                                        <div className="space-y-4">
-                                            <h4 className="text-sm font-bold uppercase tracking-wider text-muted-foreground border-b border-border pb-2 mb-4">Media & Presentation</h4>
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                                <div className="form-group">
-                                                    <label className="block text-sm font-medium mb-1.5 text-foreground">Image URL</label>
-                                                    <div className="flex gap-2">
-                                                        <input name="image" defaultValue={editingItem?.image} placeholder="https://..." className="input w-full" />
-                                                        <label className="btn btn-outline px-3 cursor-pointer" title="Upload Image">
-                                                            <Upload size={18} />
-                                                            <input type="file" className="hidden" onChange={(e) => handleFileUpload(e, 'image')} accept="image/*" />
-                                                        </label>
-                                                    </div>
-                                                </div>
-
-                                                <div className="form-group">
-                                                    <label className="block text-sm font-medium mb-1.5 text-foreground">Video URL</label>
-                                                    <div className="flex gap-2">
-                                                        <input name="video" defaultValue={editingItem?.video} placeholder="https://..." className="input w-full" />
-                                                        <label className="btn btn-outline px-3 cursor-pointer" title="Upload Video">
-                                                            <Upload size={18} />
-                                                            <input type="file" className="hidden" onChange={(e) => handleFileUpload(e, 'video')} accept="video/*" />
-                                                        </label>
-                                                    </div>
-                                                </div>
-
-                                                <div className="form-group">
-                                                    <label className="block text-sm font-medium mb-1.5 text-purple-500">3D Model (GLB)</label>
-                                                    <input name="glbModel" defaultValue={editingItem?.model3D?.glb} placeholder="model.glb" className="input w-full border-purple-500/20 focus:border-purple-500" />
-                                                </div>
-
-                                                <div className="form-group">
-                                                    <label className="block text-sm font-medium mb-1.5 text-purple-500">3D Model (USDZ)</label>
-                                                    <input name="usdzModel" defaultValue={editingItem?.model3D?.usdz} placeholder="model.usdz" className="input w-full border-purple-500/20 focus:border-purple-500" />
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        {/* Inventory & Prep */}
-                                        <div className="space-y-4">
-                                            <h4 className="text-sm font-bold uppercase tracking-wider text-muted-foreground border-b border-border pb-2 mb-4">Operations</h4>
-                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                                <div className="form-group">
-                                                    <label className="block text-sm font-medium mb-1.5 text-blue-500">Stock Quantity</label>
-                                                    <input type="number" name="stockQuantity" defaultValue={editingItem?.stockQuantity ?? 100} required min="0" className="input w-full border-blue-500/20 focus:border-blue-500" />
-                                                </div>
-
-                                                <div className="form-group">
-                                                    <label className="block text-sm font-medium mb-1.5 text-blue-500">Low Stock Alert</label>
-                                                    <input type="number" name="lowStockThreshold" defaultValue={editingItem?.lowStockThreshold ?? 10} required min="0" className="input w-full border-blue-500/20 focus:border-blue-500" />
-                                                </div>
-
-                                                <div className="form-group">
-                                                    <label className="block text-sm font-medium mb-1.5 text-foreground">Prep Time (mins)</label>
-                                                    <div className="relative">
-                                                        <Clock className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
-                                                        <input type="number" name="prepTime" defaultValue={editingItem?.prepTime ?? 15} required min="0" className="input w-full pl-9" />
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        {/* Details & Nutrition */}
-                                        <div className="space-y-4">
-                                            <h4 className="text-sm font-bold uppercase tracking-wider text-muted-foreground border-b border-border pb-2 mb-4">Details & Nutrition</h4>
-
-                                            <div className="form-group">
-                                                <label className="block text-sm font-medium mb-1.5 text-foreground">Ingredients (comma separated)</label>
-                                                <input name="ingredients" defaultValue={editingItem?.ingredients?.join(', ')} placeholder="Flour, Sugar, Eggs, Milk..." className="input w-full" />
-                                            </div>
-
-                                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                                <div className="form-group">
-                                                    <label className="block text-xs font-medium mb-1 text-muted-foreground">Calories (kcal)</label>
-                                                    <input type="number" name="calories" defaultValue={editingItem?.nutritionalInfo?.calories ?? 0} min="0" className="input w-full" />
-                                                </div>
-                                                <div className="form-group">
-                                                    <label className="block text-xs font-medium mb-1 text-muted-foreground">Protein (g)</label>
-                                                    <input type="number" name="protein" defaultValue={editingItem?.nutritionalInfo?.protein ?? 0} min="0" className="input w-full" />
-                                                </div>
-                                                <div className="form-group">
-                                                    <label className="block text-xs font-medium mb-1 text-muted-foreground">Carbs (g)</label>
-                                                    <input type="number" name="carbs" defaultValue={editingItem?.nutritionalInfo?.carbs ?? 0} min="0" className="input w-full" />
-                                                </div>
-                                                <div className="form-group">
-                                                    <label className="block text-xs font-medium mb-1 text-muted-foreground">Fats (g)</label>
-                                                    <input type="number" name="fats" defaultValue={editingItem?.nutritionalInfo?.fats ?? 0} min="0" className="input w-full" />
-                                                </div>
-                                            </div>
-
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
-                                                <div>
-                                                    <label className="block text-sm font-medium mb-3 text-foreground">Dietary Labels</label>
-                                                    <div className="flex flex-wrap gap-4">
-                                                        <label className="flex items-center gap-2 cursor-pointer p-2 rounded-lg hover:bg-muted/50 transition-colors border border-transparent hover:border-border">
-                                                            <input type="checkbox" name="isVegetarian" defaultChecked={editingItem?.dietaryInfo?.isVegetarian} className="checkbox checkbox-primary w-5 h-5" />
-                                                            <span className="text-sm">Vegetarian</span>
-                                                        </label>
-                                                        <label className="flex items-center gap-2 cursor-pointer p-2 rounded-lg hover:bg-muted/50 transition-colors border border-transparent hover:border-border">
-                                                            <input type="checkbox" name="isVegan" defaultChecked={editingItem?.dietaryInfo?.isVegan} className="checkbox checkbox-primary w-5 h-5" />
-                                                            <span className="text-sm">Vegan</span>
-                                                        </label>
-                                                        <label className="flex items-center gap-2 cursor-pointer p-2 rounded-lg hover:bg-muted/50 transition-colors border border-transparent hover:border-border">
-                                                            <input type="checkbox" name="isGlutenFree" defaultChecked={editingItem?.dietaryInfo?.isGlutenFree} className="checkbox checkbox-primary w-5 h-5" />
-                                                            <span className="text-sm">Gluten Free</span>
-                                                        </label>
-                                                    </div>
+                                    <form id="menu-form" onSubmit={handleSubmit} className="p-6 md:p-10 space-y-12 overflow-y-auto custom-scrollbar flex-1 pb-32 sm:pb-10">
+                                        {/* Professional Basics */}
+                                        <div className="space-y-8">
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-10 h-10 bg-primary/10 rounded-2xl flex items-center justify-center text-primary">
+                                                    <Utensils size={22} strokeWidth={2.5} />
                                                 </div>
                                                 <div>
-                                                    <label className="block text-sm font-medium mb-1.5 text-foreground">Spice Level</label>
-                                                    <div className="flex items-center gap-2">
-                                                        <Flame className={`text-orange-500`} size={20} />
-                                                        <select name="spiceLevel" defaultValue={editingItem?.dietaryInfo?.spiceLevel || 'None'} className="input w-full">
-                                                            <option value="None">No Spice</option>
-                                                            <option value="Mild">Mild</option>
-                                                            <option value="Medium">Medium</option>
-                                                            <option value="Hot">Hot</option>
-                                                            <option value="Extra Hot">Extra Hot 🔥</option>
+                                                    <h4 className="text-lg font-black text-foreground tracking-tight">Essential Details</h4>
+                                                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">General information for guests</p>
+                                                </div>
+                                            </div>
+
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                                <div className="space-y-3">
+                                                    <label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Product Name</label>
+                                                    <input name="name" defaultValue={editingItem?.name} required className="input w-full bg-muted/40 border-2 border-transparent focus:border-primary/50 transition-all font-bold py-4 text-lg rounded-2xl" placeholder="e.g. Wagyu Beef Slider" />
+                                                </div>
+
+                                                <div className="space-y-3">
+                                                    <label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Menu Category</label>
+                                                    <div className="relative group">
+                                                        <select
+                                                            name="category"
+                                                            defaultValue={editingItem?.category || 'Main Course'}
+                                                            className="input w-full bg-muted/40 border-2 border-transparent focus:border-primary/50 transition-all font-bold py-4 px-6 text-foreground appearance-none rounded-2xl cursor-pointer"
+                                                        >
+                                                            {categories.filter(c => c !== 'All').map(c => (
+                                                                <option key={c} value={c} className="bg-card text-foreground py-4">
+                                                                    {c}
+                                                                </option>
+                                                            ))}
                                                         </select>
+                                                        <div className="absolute right-6 top-1/2 -translate-y-1/2 pointer-events-none text-primary group-focus-within:rotate-180 transition-transform">
+                                                            <Plus size={20} className="rotate-45" />
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div className="md:col-span-2 space-y-3">
+                                                    <label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Detailed Description</label>
+                                                    <textarea name="description" defaultValue={editingItem?.description} className="input w-full h-32 resize-none bg-muted/40 border-2 border-transparent focus:border-primary/50 transition-all font-medium leading-relaxed rounded-2xl p-4" placeholder="Describe the flavors, texture, and origin..." />
+                                                </div>
+
+                                                <div className="space-y-3">
+                                                    <label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Listed Price</label>
+                                                    <div className="relative">
+                                                        <span className="absolute left-6 top-1/2 -translate-y-1/2 text-muted-foreground font-black text-lg">$</span>
+                                                        <input type="number" name="price" defaultValue={editingItem?.price} required min="0" step="0.01" className="input w-full pl-12 bg-muted/40 border-2 border-transparent focus:border-primary/50 transition-all font-bold py-4 text-lg rounded-2xl" placeholder="0.00" />
+                                                    </div>
+                                                </div>
+
+                                                <div className="md:col-span-2 space-y-4">
+                                                    <div className="flex justify-between items-end">
+                                                        <label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Upload Images (Max 4)</label>
+                                                        <span className="text-[10px] font-black text-muted-foreground mr-1">{uploadedImages.length}/4</span>
+                                                    </div>
+                                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                                                        <AnimatePresence>
+                                                            {uploadedImages.map((url, idx) => (
+                                                                <motion.div
+                                                                    key={url}
+                                                                    initial={{ opacity: 0, scale: 0.8 }}
+                                                                    animate={{ opacity: 1, scale: 1 }}
+                                                                    exit={{ opacity: 0, scale: 0.8 }}
+                                                                    className="relative aspect-square rounded-2xl overflow-hidden border-4 border-border group"
+                                                                >
+                                                                    <img src={url} alt={`Upload ${idx}`} className="w-full h-full object-cover" />
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => removeImage(idx)}
+                                                                        className="absolute top-2 right-2 bg-red-500 text-white p-1.5 rounded-xl opacity-0 group-hover:opacity-100 transition-all shadow-lg"
+                                                                    >
+                                                                        <XCircle size={16} strokeWidth={3} />
+                                                                    </button>
+                                                                </motion.div>
+                                                            ))}
+                                                        </AnimatePresence>
+
+                                                        {uploadedImages.length < 4 && (
+                                                            <label className="aspect-square rounded-2xl border-4 border-dashed border-border flex flex-col items-center justify-center gap-2 cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-all group">
+                                                                <div className="p-3 bg-muted rounded-xl group-hover:bg-primary/10 transition-colors">
+                                                                    <Upload size={24} className="text-muted-foreground group-hover:text-primary transition-colors" />
+                                                                </div>
+                                                                <span className="text-[10px] font-black uppercase text-muted-foreground">Add Image</span>
+                                                                <input type="file" multiple className="hidden" onChange={handleFileUpload} accept="image/*" />
+                                                            </label>
+                                                        )}
                                                     </div>
                                                 </div>
                                             </div>
                                         </div>
 
-                                        <div className="flex justify-end gap-3 pt-6 border-t border-border mt-8">
-                                            <button type="button" onClick={() => setIsModalOpen(false)} className="btn-outline">Cancel</button>
-                                            <button type="submit" className="btn-primary min-w-[120px]">Save Item</button>
+                                        {/* Service Metrics */}
+                                        <div className="space-y-8">
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-10 h-10 bg-blue-500/10 rounded-2xl flex items-center justify-center text-blue-500">
+                                                    <Clock size={22} strokeWidth={2.5} />
+                                                </div>
+                                                <div>
+                                                    <h4 className="text-lg font-black text-foreground tracking-tight">Service & Stock</h4>
+                                                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Backend operational controls</p>
+                                                </div>
+                                            </div>
+
+                                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-8">
+                                                <div className="space-y-3">
+                                                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Prep Time (Mins)</label>
+                                                    <input type="number" name="prepTime" defaultValue={editingItem?.prepTime ?? 15} required min="0" className="input w-full bg-blue-500/5 border-2 border-transparent focus:border-blue-500/30 transition-all font-black py-4 text-center rounded-2xl text-lg" />
+                                                </div>
+                                                <div className="space-y-3">
+                                                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Calories (Kcal)</label>
+                                                    <input type="number" name="calories" defaultValue={editingItem?.nutritionalInfo?.calories ?? 450} required min="0" className="input w-full bg-orange-500/5 border-2 border-transparent focus:border-orange-500/30 transition-all font-black py-4 text-center rounded-2xl text-lg" />
+                                                </div>
+                                                <div className="space-y-3">
+                                                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Units In Stock</label>
+                                                    <input type="number" name="stockQuantity" defaultValue={editingItem?.stockQuantity ?? 100} required min="0" className="input w-full bg-emerald-500/5 border-2 border-transparent focus:border-emerald-500/30 transition-all font-black py-4 text-center rounded-2xl text-lg" />
+                                                </div>
+                                            </div>
                                         </div>
                                     </form>
+
+                                    <div className="fixed bottom-0 left-0 right-0 p-8 bg-card/80 backdrop-blur-2xl border-t border-border/50 sm:relative sm:bg-transparent sm:border-t-0 flex gap-6 z-20">
+                                        <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 py-5 bg-muted/50 text-foreground font-black uppercase tracking-widest rounded-[2rem] border-4 border-border/50 hover:bg-muted transition-all active:scale-95 text-xs">
+                                            Discard
+                                        </button>
+                                        <button form="menu-form" type="submit" className="flex-[2] py-5 bg-primary text-primary-foreground font-black uppercase tracking-widest rounded-[2rem] shadow-2xl shadow-primary/30 hover:brightness-110 transition-all active:scale-95 text-xs">
+                                            Publish Changes
+                                        </button>
+                                    </div>
                                 </motion.div>
                             </div>
                         )}

@@ -4,13 +4,15 @@ import MenuManagement from './MenuManagement';
 import InventoryManagement from './InventoryManagement';
 import OrderManagement from './OrderManagement';
 import ServiceRequests from './ServiceRequests';
-import Reservations from './Reservations';
 import Complaints from './Complaints';
 import Dashboard from './Dashboard';
 import RestaurantOnboarding from './RestaurantOnboarding';
 
 import Analytics from './Analytics';
 import Reviews from './Reviews';
+import ChefAI from './ChefAI';
+import Subscription from './Subscription';
+import StaffManagement from './StaffManagement';
 
 export {
     RestaurantSettings,
@@ -19,10 +21,12 @@ export {
     InventoryManagement,
     OrderManagement,
     ServiceRequests,
-    Reservations,
     Complaints,
     Dashboard,
     RestaurantOnboarding,
     Analytics,
-    Reviews
+    Reviews,
+    ChefAI,
+    Subscription,
+    StaffManagement
 };

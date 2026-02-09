@@ -46,10 +46,16 @@ const Complaints = () => {
 
     return (
         <div className="flex bg-background min-h-screen text-foreground font-sans selection:bg-primary/30 transition-colors duration-300">
-            <Sidebar className={mobileMenuOpen ? "flex fixed inset-y-0 left-0 z-50 w-64 bg-card shadow-2xl" : "hidden lg:flex"} />
+            <Sidebar
+                open={mobileMenuOpen}
+                onClose={() => setMobileMenuOpen(false)}
+            />
 
             {mobileMenuOpen && (
-                <div
+                <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
                     className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 lg:hidden"
                     onClick={() => setMobileMenuOpen(false)}
                 />
@@ -73,14 +79,14 @@ const Complaints = () => {
                             </p>
                         </motion.div>
 
-                        <div className="flex bg-card border border-border p-1 rounded-lg shadow-sm">
+                        <div className="flex bg-card border-4 border-border p-1.5 rounded-2xl shadow-xl">
                             {['OPEN', 'RESOLVED'].map((status) => (
                                 <button
                                     key={status}
                                     onClick={() => setSelectedStatus(status)}
-                                    className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${selectedStatus === status
-                                        ? 'bg-primary text-primary-foreground shadow-sm'
-                                        : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                                    className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${selectedStatus === status
+                                        ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20'
+                                        : 'text-muted-foreground hover:text-foreground hover:bg-muted'
                                         }`}
                                 >
                                     {status.charAt(0) + status.slice(1).toLowerCase()}
@@ -89,36 +95,25 @@ const Complaints = () => {
                         </div>
                     </div>
 
-                    {/* Quick Stats (Only relevant for OPEN usually, but nice to have) */}
+                    {/* Quick Stats */}
                     {selectedStatus === 'OPEN' && (
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-                            <div className="bg-card border border-border/50 p-4 rounded-xl flex items-center gap-4 shadow-sm">
-                                <div className="p-3 bg-red-500/10 text-red-500 rounded-lg">
-                                    <AlertCircle size={24} />
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+                            {[
+                                { label: 'Critical Issues', value: stats.critical, icon: AlertCircle, color: 'text-red-500', bg: 'bg-red-500/10' },
+                                { label: 'High Priority', value: stats.high, icon: ShieldAlert, color: 'text-orange-500', bg: 'bg-orange-500/10' },
+                                { label: 'Total Open', value: stats.total, icon: MessageSquare, color: 'text-blue-500', bg: 'bg-blue-500/10' },
+                            ].map((stat, i) => (
+                                <div key={i} className="bg-card border-4 border-border rounded-[2.5rem] p-8 flex items-center gap-6 shadow-2xl relative overflow-hidden group">
+                                    <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent pointer-events-none" />
+                                    <div className={`p-5 rounded-2xl ${stat.bg} ${stat.color} shadow-inner relative z-10`}>
+                                        <stat.icon size={28} strokeWidth={2.5} />
+                                    </div>
+                                    <div className="relative z-10">
+                                        <p className="text-4xl font-black text-foreground tracking-tighter">{stat.value}</p>
+                                        <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em]">{stat.label}</p>
+                                    </div>
                                 </div>
-                                <div>
-                                    <p className="text-sm text-muted-foreground">Critical Issues</p>
-                                    <h3 className="text-2xl font-bold text-foreground">{stats.critical}</h3>
-                                </div>
-                            </div>
-                            <div className="bg-card border border-border/50 p-4 rounded-xl flex items-center gap-4 shadow-sm">
-                                <div className="p-3 bg-orange-500/10 text-orange-500 rounded-lg">
-                                    <ShieldAlert size={24} />
-                                </div>
-                                <div>
-                                    <p className="text-sm text-muted-foreground">High Priority</p>
-                                    <h3 className="text-2xl font-bold text-foreground">{stats.high}</h3>
-                                </div>
-                            </div>
-                            <div className="bg-card border border-border/50 p-4 rounded-xl flex items-center gap-4 shadow-sm">
-                                <div className="p-3 bg-blue-500/10 text-blue-500 rounded-lg">
-                                    <MessageSquare size={24} />
-                                </div>
-                                <div>
-                                    <p className="text-sm text-muted-foreground">Total Open</p>
-                                    <h3 className="text-2xl font-bold text-foreground">{stats.total}</h3>
-                                </div>
-                            </div>
+                            ))}
                         </div>
                     )}
 
@@ -153,7 +148,7 @@ const Complaints = () => {
                     </div>
                 </main>
             </div>
-        </div>
+        </div >
     );
 };
 
@@ -174,57 +169,59 @@ const ComplaintCard = ({ complaint, onResolve, isResolved }) => {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95 }}
-            className={`bg-card border ${isExpanded ? 'border-primary/50 shadow-md' : 'border-border/50 shadow-sm'} rounded-xl overflow-hidden hover:border-border transition-all`}
+            className={`bg-card border-2 ${isExpanded ? 'border-primary shadow-[0_20px_40px_-15px_rgba(0,0,0,0.2)]' : 'border-border shadow-md'} rounded-3xl overflow-hidden hover:border-primary/50 transition-all duration-300 relative group`}
         >
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity" />
             <div
-                className="p-6 cursor-pointer flex gap-4"
+                className="p-5 cursor-pointer flex gap-5 relative z-10"
                 onClick={() => !isExpanded && setIsExpanded(true)}
             >
-                {/* Severity Indicator Strip */}
-                <div className={`w-1.5 self-stretch rounded-full ${complaint.severity === 'CRITICAL' ? 'bg-red-500' :
-                    complaint.severity === 'HIGH' ? 'bg-orange-500' :
-                        complaint.severity === 'MEDIUM' ? 'bg-yellow-500' : 'bg-blue-500'
+                {/* Severity Indicator Strip - Compact */}
+                <div className={`w-1.5 self-stretch rounded-full ${complaint.severity === 'CRITICAL' ? 'bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.3)]' :
+                    complaint.severity === 'HIGH' ? 'bg-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.3)]' :
+                        complaint.severity === 'MEDIUM' ? 'bg-yellow-500 shadow-[0_0_10px_rgba(234,179,8,0.3)]' : 'bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.3)]'
                     }`} />
 
                 <div className="flex-1 min-w-0">
                     <div className="flex justify-between items-start mb-2">
-                        <div className="flex items-center gap-3">
-                            <span className={`px-2.5 py-0.5 rounded text-xs font-bold border ${severityColors[complaint.severity] || severityColors.LOW}`}>
+                        <div className="flex flex-wrap items-center gap-2">
+                            <span className={`px-2.5 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-widest border ${severityColors[complaint.severity] || severityColors.LOW}`}>
                                 {complaint.severity}
                             </span>
-                            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                            <span className="text-[9px] font-black text-muted-foreground uppercase tracking-wider px-2 py-0.5 bg-muted/30 rounded-lg">
                                 {complaint.type}
                             </span>
-                            <span className="text-xs text-muted-foreground flex items-center gap-1">
-                                <Clock size={12} /> {new Date(complaint.createdAt).toLocaleDateString()}
+                            <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
+                                <Clock size={10} strokeWidth={3} /> {new Date(complaint.createdAt).toLocaleDateString()}
                             </span>
                         </div>
                         <button
                             onClick={(e) => { e.stopPropagation(); setIsExpanded(!isExpanded); }}
-                            className="text-muted-foreground hover:text-foreground transition-colors"
+                            className="bg-muted/50 text-muted-foreground hover:text-foreground p-1.5 rounded-xl transition-all active:scale-90"
                         >
-                            <ChevronDown size={20} className={`transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} />
+                            <ChevronDown size={18} strokeWidth={2.5} className={`transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} />
                         </button>
                     </div>
 
-                    <h3 className="text-lg font-bold text-foreground mb-2 leading-tight">
+                    <h3 className="text-base font-bold text-foreground mb-3 leading-snug tracking-tight">
                         {complaint.message}
                     </h3>
 
-                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                        <div className="flex items-center gap-1.5">
-                            <User size={14} className="text-primary" />
-                            <span className="text-foreground font-medium">{complaint.customerName}</span>
+                    <div className="flex flex-wrap gap-3">
+                        <div className="flex items-center gap-2 bg-muted/20 px-3 py-1.5 rounded-xl border border-border/20">
+                            <User size={12} className="text-primary" strokeWidth={3} />
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-foreground">{complaint.customerName}</span>
                         </div>
                         {complaint.contact && (
-                            <div className="flex items-center gap-1.5">
-                                <Phone size={14} />
-                                <span>{complaint.contact}</span>
+                            <div className="flex items-center gap-2 bg-muted/20 px-3 py-1.5 rounded-xl border border-border/20">
+                                <Phone size={12} className="text-muted-foreground" />
+                                <span className="text-[10px] font-medium text-muted-foreground">{complaint.contact}</span>
                             </div>
                         )}
                         {complaint.voiceNoteUrl && (
-                            <div className="flex items-center gap-1.5 px-2 py-0.5 bg-muted/30 rounded text-xs font-medium">
-                                <Mic size={12} /> Voice Note
+                            <div className="flex items-center gap-2 bg-primary/10 px-3 py-1.5 rounded-xl border border-primary/10">
+                                <Mic size={12} className="text-primary" strokeWidth={3} />
+                                <span className="text-[9px] font-black uppercase tracking-widest text-primary">Voice Note</span>
                             </div>
                         )}
                     </div>
@@ -237,63 +234,65 @@ const ComplaintCard = ({ complaint, onResolve, isResolved }) => {
                         initial={{ height: 0, opacity: 0 }}
                         animate={{ height: 'auto', opacity: 1 }}
                         exit={{ height: 0, opacity: 0 }}
-                        className="border-t border-border/50 bg-muted/5"
+                        className="border-t border-border/30 bg-muted/5"
                     >
-                        <div className="p-6 pt-4">
+                        <div className="p-6 pt-2">
                             {/* Detailed Info */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                                <div>
-                                    <label className="text-xs font-medium text-muted-foreground mb-1 block">Customer Details</label>
-                                    <div className="text-sm text-foreground space-y-1">
-                                        <p>{complaint.customerName}</p>
-                                        <p className="font-mono text-muted-foreground">{complaint.contact || 'No contact info'}</p>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                                <div className="bg-muted/10 p-4 rounded-2xl border border-border/20">
+                                    <label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-2 block">Customer Profile</label>
+                                    <div className="space-y-1">
+                                        <p className="text-md font-bold text-foreground">{complaint.customerName}</p>
+                                        <p className="text-xs font-medium text-muted-foreground">{complaint.contact || 'No contact provided'}</p>
                                     </div>
                                 </div>
                                 {complaint.voiceNoteUrl && (
-                                    <div>
-                                        <label className="text-xs font-medium text-muted-foreground mb-1 block">Voice Attachment</label>
-                                        <audio controls src={complaint.voiceNoteUrl} className="h-8 w-full max-w-xs rounded" />
+                                    <div className="bg-muted/10 p-4 rounded-2xl border border-border/20">
+                                        <label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-2 block">Voice Evidence</label>
+                                        <audio controls src={complaint.voiceNoteUrl} className="h-8 w-full rounded-xl" />
                                     </div>
                                 )}
                             </div>
 
                             {/* Action Area */}
                             {isResolved ? (
-                                <div className="bg-green-500/10 border border-green-500/20 p-4 rounded-lg flex items-start gap-3">
-                                    <CheckCircle size={20} className="text-green-500 mt-0.5" />
-                                    <div>
-                                        <h4 className="text-sm font-bold text-green-500 mb-1">Resolved</h4>
-                                        <p className="text-sm text-foreground/80">{complaint.resolution}</p>
+                                <div className="bg-emerald-500/5 border-2 border-emerald-500/20 p-5 rounded-2xl flex items-start gap-4">
+                                    <div className="p-2 bg-emerald-500/10 rounded-xl text-emerald-500 shadow-inner">
+                                        <CheckCircle size={24} strokeWidth={2.5} />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <h4 className="text-xs font-black text-emerald-500 mb-1 uppercase tracking-tight">Resolution Report</h4>
+                                        <p className="text-xs text-foreground/80 font-medium leading-relaxed italic truncate-multiline">{complaint.resolution}</p>
                                     </div>
                                 </div>
                             ) : (
-                                <div className="bg-background border border-border p-4 rounded-xl shadow-sm">
-                                    <h4 className="text-sm font-bold text-foreground mb-3 flex items-center gap-2">
-                                        <ShieldAlert size={16} className="text-primary" /> Resolution Details
+                                <div className="bg-card border-2 border-primary/20 p-6 rounded-[2rem] shadow-lg relative overflow-hidden">
+                                    <h4 className="text-[9px] font-black text-primary uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
+                                        <ShieldAlert size={14} strokeWidth={3} /> RESOLUTION MESSAGE
                                     </h4>
                                     <textarea
-                                        className="input w-full min-h-[100px] mb-4 text-sm resize-none"
-                                        placeholder="Describe how this issue was resolved..."
+                                        className="w-full min-h-[100px] mb-4 text-xs bg-muted/20 border border-border/50 focus:border-primary/50 font-medium py-3 px-4 rounded-xl outline-none transition-all"
+                                        placeholder="Describe the resolution..."
                                         value={resolution}
                                         onChange={(e) => setResolution(e.target.value)}
                                         onClick={e => e.stopPropagation()}
                                     />
-                                    <div className="flex justify-end gap-3">
+                                    <div className="flex flex-col sm:flex-row justify-end gap-2">
                                         <button
                                             onClick={(e) => { e.stopPropagation(); setIsExpanded(false); }}
-                                            className="btn-ghost text-sm"
+                                            className="px-6 py-2.5 text-[9px] font-black uppercase tracking-widest text-muted-foreground hover:bg-muted rounded-xl transition-all"
                                         >
-                                            Cancel
+                                            Dismiss
                                         </button>
                                         <button
                                             onClick={(e) => {
                                                 e.stopPropagation();
                                                 onResolve({ id: complaint._id, resolution });
                                             }}
-                                            className="btn-primary text-sm gap-2"
-                                            disabled={!resolution.trim()}
+                                            className="px-8 py-2.5 bg-primary text-primary-foreground font-black uppercase tracking-widest text-[9px] rounded-xl shadow-lg shadow-primary/10 hover:brightness-110 flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-50"
+                                            disabled={!resolution.trim() || resolveMutation.isPending}
                                         >
-                                            <CheckCircle size={16} /> Mark as Resolved
+                                            <CheckCircle size={14} strokeWidth={3} /> {resolveMutation.isPending ? 'Saving...' : 'Resolve'}
                                         </button>
                                     </div>
                                 </div>

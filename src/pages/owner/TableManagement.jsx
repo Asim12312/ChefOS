@@ -12,7 +12,10 @@ const TableManagement = () => {
     const { user } = useAuth();
     const [tables, setTables] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [restaurantId, setRestaurantId] = useState(user?.restaurant);
+    const [restaurantId, setRestaurantId] = useState(() => {
+        if (!user?.restaurant) return null;
+        return typeof user.restaurant === 'object' ? user.restaurant._id : user.restaurant;
+    });
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
     // Filter State
@@ -44,6 +47,13 @@ const TableManagement = () => {
                 if (res.data.data && res.data.data.length > 0) {
                     targetRestaurantId = res.data.data[0]._id;
                     setRestaurantId(targetRestaurantId);
+                }
+            } else if (user?.restaurant && !restaurantId) {
+                // Keep state in sync if user.restaurant becomes available
+                const id = typeof user.restaurant === 'object' ? user.restaurant._id : user.restaurant;
+                if (id) {
+                    targetRestaurantId = id;
+                    setRestaurantId(id);
                 }
             }
 
@@ -108,9 +118,15 @@ const TableManagement = () => {
         }
     };
 
-    const openQRModal = (table) => {
-        setSelectedTable(table);
-        setShowQRModal(true);
+    const openQRModal = async (table) => {
+        try {
+            const { data } = await api.get(`/tables/${table._id}`);
+            setSelectedTable(data.data);
+            setShowQRModal(true);
+        } catch (error) {
+            console.error('Error fetching table details:', error);
+            toast.error('Failed to load QR code');
+        }
     };
 
     const handleUpdateStatus = async (id, status) => {
@@ -195,10 +211,16 @@ const TableManagement = () => {
 
     return (
         <div className="flex bg-background min-h-screen text-foreground font-sans selection:bg-primary/30 transition-colors duration-300">
-            <Sidebar className={mobileMenuOpen ? "flex fixed inset-y-0 left-0 z-50 w-64 bg-card shadow-2xl" : "hidden lg:flex"} />
+            <Sidebar
+                open={mobileMenuOpen}
+                onClose={() => setMobileMenuOpen(false)}
+            />
 
             {mobileMenuOpen && (
-                <div
+                <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
                     className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 lg:hidden"
                     onClick={() => setMobileMenuOpen(false)}
                 />
@@ -229,58 +251,49 @@ const TableManagement = () => {
                         </button>
                     </div>
 
-                    {/* Stats & Filters */}
-                    <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
-                        {/* Stats Cards */}
-                        <div className="lg:col-span-3 grid grid-cols-2 md:grid-cols-4 gap-4">
-                            {[
-                                { label: 'Total Tables', value: stats.total, icon: TableIcon, color: 'text-blue-500', bg: 'bg-blue-500/10' },
-                                { label: 'Occupied', value: stats.occupied, icon: Users, color: 'text-red-500', bg: 'bg-red-500/10' },
-                                { label: 'Available', value: stats.free, icon: CheckCircleIcon, color: 'text-green-500', bg: 'bg-green-500/10' },
-                                { label: 'Total Capacity', value: stats.capacity, icon: Armchair, color: 'text-purple-500', bg: 'bg-purple-500/10' },
-                            ].map((stat, i) => (
-                                <div key={i} className="bg-card border border-border/50 rounded-xl p-4 flex items-center gap-4 shadow-sm">
-                                    <div className={`p-3 rounded-lg ${stat.bg} ${stat.color}`}>
-                                        <stat.icon size={20} />
-                                    </div>
-                                    <div>
-                                        <p className="text-2xl font-bold text-foreground">{stat.value}</p>
-                                        <p className="text-xs text-muted-foreground font-medium">{stat.label}</p>
-                                    </div>
+                    {/* Stats Carousel */}
+                    <div className="flex gap-4 overflow-x-auto pb-6 snap-x snap-mandatory carousel-scrollbar -mx-4 px-4 lg:mx-0 lg:px-0 lg:grid lg:grid-cols-4 lg:pb-0 mb-8">
+                        {[
+                            { label: 'Total Tables', value: stats.total, icon: TableIcon, color: 'text-blue-500', bg: 'bg-blue-500/10' },
+                            { label: 'Occupied', value: stats.occupied, icon: Users, color: 'text-red-500', bg: 'bg-red-500/10' },
+                            { label: 'Available', value: stats.free, icon: CheckCircleIcon, color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
+                            { label: 'Total Guests', value: stats.capacity, icon: Armchair, color: 'text-purple-500', bg: 'bg-purple-500/10' },
+                        ].map((stat, i) => (
+                            <div key={i} className="min-w-[240px] lg:min-w-0 snap-center bg-card/50 backdrop-blur-md border border-border/50 rounded-2xl p-5 flex items-center gap-5 shadow-sm transition-all hover:shadow-md">
+                                <div className={`p-4 rounded-xl ${stat.bg} ${stat.color} shadow-inner`}>
+                                    <stat.icon size={22} strokeWidth={2.5} />
                                 </div>
-                            ))}
-                        </div>
+                                <div>
+                                    <p className="text-3xl font-black text-foreground tracking-tight">{stat.value}</p>
+                                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">{stat.label}</p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
 
-                        {/* Filters */}
-                        <div className="bg-card border border-border/50 rounded-xl p-4 flex flex-col justify-center gap-3 shadow-sm">
-                            <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                                <Filter size={16} /> Filters
-                            </div>
-                            <div className="flex gap-2">
-                                <select
-                                    value={filterLocation}
-                                    onChange={(e) => setFilterLocation(e.target.value)}
-                                    className="input text-sm py-1.5 px-3 w-full"
-                                >
-                                    <option value="All">All Locations</option>
-                                    <option value="Indoor">Indoor</option>
-                                    <option value="Outdoor">Outdoor</option>
-                                    <option value="VIP">VIP</option>
-                                    <option value="Patio">Patio</option>
-                                    <option value="Bar">Bar</option>
-                                </select>
-                                <select
-                                    value={filterStatus}
-                                    onChange={(e) => setFilterStatus(e.target.value)}
-                                    className="input text-sm py-1.5 px-3 w-full"
-                                >
-                                    <option value="All">All Statuses</option>
-                                    <option value="FREE">Free</option>
-                                    <option value="OCCUPIED">Occupied</option>
-                                    <option value="RESERVED">Reserved</option>
-                                    <option value="CLEANING">Cleaning</option>
-                                </select>
-                            </div>
+                    {/* Filters & Actions Overlay */}
+                    <div className="flex flex-col sm:flex-row items-center gap-4 mb-8">
+                        <div className="flex-1 flex gap-2 w-full overflow-x-auto pb-2 sm:pb-0 carousel-scrollbar">
+                            <select
+                                value={filterLocation}
+                                onChange={(e) => setFilterLocation(e.target.value)}
+                                className="bg-card/50 backdrop-blur-md border border-border/50 rounded-xl px-4 py-2.5 text-xs font-black uppercase tracking-widest focus:ring-2 ring-primary/20 outline-none min-w-[140px]"
+                            >
+                                <option value="All">All Areas</option>
+                                <option value="Indoor">Indoor</option>
+                                <option value="Outdoor">Outdoor</option>
+                                <option value="VIP">VIP</option>
+                            </select>
+                            <select
+                                value={filterStatus}
+                                onChange={(e) => setFilterStatus(e.target.value)}
+                                className="bg-card/50 backdrop-blur-md border border-border/50 rounded-xl px-4 py-2.5 text-xs font-black uppercase tracking-widest focus:ring-2 ring-primary/20 outline-none min-w-[140px]"
+                            >
+                                <option value="All">All States</option>
+                                <option value="FREE">Available</option>
+                                <option value="OCCUPIED">Busy</option>
+                                <option value="CLEANING">Cleaning</option>
+                            </select>
                         </div>
                     </div>
 
@@ -303,7 +316,7 @@ const TableManagement = () => {
                     ) : (
                         <motion.div
                             layout
-                            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+                            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
                         >
                             <AnimatePresence>
                                 {filteredTables.map(table => (
@@ -313,114 +326,105 @@ const TableManagement = () => {
                                         initial={{ opacity: 0, scale: 0.95 }}
                                         animate={{ opacity: 1, scale: 1 }}
                                         exit={{ opacity: 0, scale: 0.95 }}
-                                        className={`relative group rounded-2xl p-5 border transition-all duration-300 hover:shadow-lg ${table.status === 'OCCUPIED' ? 'bg-red-500/5 border-red-500/20 hover:border-red-500/40' :
-                                            table.status === 'RESERVED' ? 'bg-orange-500/5 border-orange-500/20 hover:border-orange-500/40' :
-                                                table.status === 'CLEANING' ? 'bg-blue-500/5 border-blue-500/20 hover:border-blue-500/40' :
-                                                    'bg-card border-border hover:border-primary/50'
+                                        className={`relative group rounded-[2.5rem] p-8 border-4 lg:border-[10px] shadow-2xl transition-all duration-500 hover:shadow-[0_30px_60px_-15px_rgba(0,0,0,0.3)] overflow-hidden ${table.status === 'OCCUPIED' ? 'bg-red-500/5 border-red-500/60' :
+                                            table.status === 'RESERVED' ? 'bg-orange-500/5 border-orange-500/60' :
+                                                table.status === 'CLEANING' ? 'bg-blue-500/5 border-blue-500/60' :
+                                                    'bg-card border-border hover:border-primary'
                                             }`}
                                     >
-                                        <div className="flex justify-between items-start mb-4">
-                                            <div className="flex items-center gap-3">
-                                                <div className={`p-2.5 rounded-xl ${table.status === 'OCCUPIED' ? 'bg-red-500/10 text-red-500' :
-                                                    table.status === 'RESERVED' ? 'bg-orange-500/10 text-orange-500' :
-                                                        table.status === 'CLEANING' ? 'bg-blue-500/10 text-blue-500' :
-                                                            'bg-green-500/10 text-green-500'
+                                        {/* Background Pulse for Occupied */}
+                                        {table.status === 'OCCUPIED' && (
+                                            <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/10 blur-[60px] rounded-full -mr-16 -mt-16 animate-pulse" />
+                                        )}
+
+                                        <div className="flex justify-between items-start mb-6 relative z-10">
+                                            <div className="flex items-center gap-4">
+                                                <div className={`p-3.5 rounded-2xl shadow-inner ${table.status === 'OCCUPIED' ? 'bg-red-500/20 text-red-600' :
+                                                    table.status === 'RESERVED' ? 'bg-orange-500/20 text-orange-600' :
+                                                        table.status === 'CLEANING' ? 'bg-blue-500/20 text-blue-600' :
+                                                            'bg-emerald-500/20 text-emerald-600'
                                                     }`}>
-                                                    {table.status === 'OCCUPIED' ? <Users size={20} /> :
-                                                        table.status === 'RESERVED' ? <Clock size={20} /> :
-                                                            table.status === 'CLEANING' ? <RefreshCw size={20} /> :
-                                                                <Coffee size={20} />}
+                                                    {table.status === 'OCCUPIED' ? <Users size={24} strokeWidth={2.5} /> :
+                                                        table.status === 'RESERVED' ? <Clock size={24} strokeWidth={2.5} /> :
+                                                            table.status === 'CLEANING' ? <RefreshCw size={24} strokeWidth={2.5} /> :
+                                                                <TableIcon size={24} strokeWidth={2.5} />}
                                                 </div>
                                                 <div>
-                                                    <h3 className="font-bold text-lg text-foreground">{table.name}</h3>
-                                                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                                                        <MapPin size={10} />
+                                                    <h3 className="font-black text-xl text-foreground tracking-tight">{table.name}</h3>
+                                                    <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">
+                                                        <MapPin size={12} strokeWidth={3} />
                                                         {table.location}
                                                     </div>
                                                 </div>
                                             </div>
-                                            {/* Context Menu Placeholder (using simple hover buttons for now) */}
-                                            <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+
+                                            <div className="flex flex-col gap-2">
                                                 <button
                                                     onClick={() => openQRModal(table)}
-                                                    className="p-1.5 hover:bg-muted rounded-md text-muted-foreground hover:text-foreground"
-                                                    title="QR Code"
+                                                    className="p-2.5 bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground rounded-xl transition-all active:scale-90 border border-border/50"
                                                 >
-                                                    <QrCode size={16} />
-                                                </button>
-                                                <button
-                                                    onClick={() => handleDeleteTable(table._id)}
-                                                    className="p-1.5 hover:bg-red-500/10 rounded-md text-muted-foreground hover:text-red-500"
-                                                    title="Delete"
-                                                >
-                                                    <Trash2 size={16} />
+                                                    <QrCode size={18} strokeWidth={2.5} />
                                                 </button>
                                             </div>
                                         </div>
 
-                                        <div className="space-y-3">
-                                            <div className="flex justify-between items-center bg-background/50 p-2 rounded-lg border border-border/50">
-                                                <span className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Status</span>
-                                                <span className={`text-xs font-bold px-2 py-0.5 rounded-md ${table.status === 'OCCUPIED' ? 'bg-red-500/10 text-red-600' :
-                                                    table.status === 'RESERVED' ? 'bg-orange-500/10 text-orange-600' :
-                                                        table.status === 'CLEANING' ? 'bg-blue-500/10 text-blue-600' :
-                                                            'bg-green-500/10 text-green-600'
+                                        <div className="space-y-4 relative z-10">
+                                            <div className="flex justify-between items-center bg-background/40 backdrop-blur-md p-3 rounded-2xl border border-border/30">
+                                                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">State</span>
+                                                <span className={`text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest ${table.status === 'OCCUPIED' ? 'bg-red-500 text-white shadow-lg shadow-red-500/20' :
+                                                    table.status === 'RESERVED' ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/20' :
+                                                        table.status === 'CLEANING' ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/20' :
+                                                            'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20'
                                                     }`}>
                                                     {table.status}
                                                 </span>
                                             </div>
 
-                                            <div className="flex justify-between items-center text-sm">
-                                                <span className="text-muted-foreground flex items-center gap-1.5">
-                                                    <Armchair size={14} /> Capacity
-                                                </span>
-                                                <span className="font-medium text-foreground">{table.capacity} Seats</span>
-                                            </div>
-
-                                            {table.status === 'OCCUPIED' && table.currentSession?.occupiedAt && (
-                                                <div className="flex justify-between items-center text-sm">
-                                                    <span className="text-muted-foreground flex items-center gap-1.5">
-                                                        <Clock size={14} /> Time
-                                                    </span>
-                                                    <TableTimer startTime={table.currentSession.occupiedAt} />
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <div className="bg-foreground/5 p-3 rounded-2xl border border-border/10 flex flex-col gap-1">
+                                                    <span className="text-[8px] font-black uppercase text-muted-foreground tracking-widest">Seats</span>
+                                                    <span className="text-sm font-black text-foreground">{table.capacity} Guests</span>
                                                 </div>
-                                            )}
+                                                <div className="bg-foreground/5 p-3 rounded-2xl border border-border/10 flex flex-col gap-1">
+                                                    <span className="text-[8px] font-black uppercase text-muted-foreground tracking-widest">Duration</span>
+                                                    {table.status === 'OCCUPIED' ? <TableTimer startTime={table.currentSession?.occupiedAt} /> : <span className="text-sm font-black text-muted-foreground/40">--</span>}
+                                                </div>
+                                            </div>
                                         </div>
 
-                                        {/* Status Switcher Overlay on Hover/Details */}
-                                        <div className="mt-4 pt-4 border-t border-border/50 grid grid-cols-2 gap-2">
+                                        {/* Fat-Finger Friendly Actions */}
+                                        <div className="mt-6 pt-6 border-t border-border/30 grid grid-cols-2 gap-3 relative z-10">
                                             {table.status !== 'FREE' && (
                                                 <button
                                                     onClick={() => handleUpdateStatus(table._id, 'FREE')}
-                                                    className="btn-outline text-xs h-8 border-green-500/30 text-green-600 hover:bg-green-500/10 hover:border-green-500/50"
+                                                    className="py-3 bg-emerald-500/10 text-emerald-600 font-black text-[10px] uppercase tracking-widest border-2 border-emerald-500/20 rounded-2xl hover:bg-emerald-500/20 transition-all active:scale-95 flex items-center justify-center gap-2"
                                                 >
-                                                    Mark Free
+                                                    <CheckCircleIcon size={14} /> Clear
                                                 </button>
                                             )}
                                             {table.status === 'FREE' && (
                                                 <button
                                                     onClick={() => handleUpdateStatus(table._id, 'OCCUPIED')}
-                                                    className="btn-outline text-xs h-8 border-red-500/30 text-red-600 hover:bg-red-500/10 hover:border-red-500/50"
+                                                    className="py-3 bg-red-500/10 text-red-600 font-black text-[10px] uppercase tracking-widest border-2 border-red-500/20 rounded-2xl hover:bg-red-500/20 transition-all active:scale-95 flex items-center justify-center gap-2"
                                                 >
-                                                    Occupied
+                                                    <Users size={14} strokeWidth={3} /> Occupy
                                                 </button>
                                             )}
                                             {table.status !== 'CLEANING' && (
                                                 <button
                                                     onClick={() => handleUpdateStatus(table._id, 'CLEANING')}
-                                                    className="btn-outline text-xs h-8 border-blue-500/30 text-blue-600 hover:bg-blue-500/10 hover:border-blue-500/50"
+                                                    className="py-3 bg-blue-500/10 text-blue-600 font-black text-[10px] uppercase tracking-widest border-2 border-blue-500/20 rounded-2xl hover:bg-blue-500/20 transition-all active:scale-95 flex items-center justify-center gap-2"
                                                 >
-                                                    Clean
+                                                    <RefreshCw size={14} strokeWidth={3} /> Clean
                                                 </button>
                                             )}
-                                            {table.status === 'FREE' && (
-                                                <button
-                                                    onClick={() => handleUpdateStatus(table._id, 'RESERVED')}
-                                                    className="btn-outline text-xs h-8 border-orange-500/30 text-orange-600 hover:bg-orange-500/10 hover:border-orange-500/50"
-                                                >
-                                                    Reserve
-                                                </button>
-                                            )}
+
+                                            <button
+                                                onClick={() => handleDeleteTable(table._id)}
+                                                className="col-span-2 py-3 bg-red-500/20 text-white font-medium text-[9px] uppercase tracking-widest border-2 border-transparent rounded-2xl hover:bg-red-500/30 transition-all active:scale-95 mt-2"
+                                            >
+                                                Permanently Remove Table
+                                            </button>
                                         </div>
                                     </motion.div>
                                 ))}
@@ -433,63 +437,70 @@ const TableManagement = () => {
             {/* Add Table Modal */}
             <AnimatePresence>
                 {showAddModal && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-md">
                         <motion.div
-                            initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                            animate={{ opacity: 1, scale: 1, y: 0 }}
-                            exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                            className="bg-card border border-border rounded-xl w-full max-w-md shadow-2xl p-6"
+                            initial={{ opacity: 0, y: "100%" }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: "100%" }}
+                            transition={{ type: "spring", damping: 25, stiffness: 200 }}
+                            className="bg-card w-full max-w-lg h-full sm:h-auto sm:rounded-3xl shadow-2xl overflow-hidden border border-border/50 flex flex-col"
                         >
-                            <div className="flex justify-between items-center mb-6">
-                                <h2 className="text-xl font-bold text-foreground">Add New Table</h2>
-                                <button onClick={() => setShowAddModal(false)} className="text-muted-foreground hover:text-foreground">
-                                    <X size={24} />
+                            <div className="p-6 border-b border-border/50 flex justify-between items-center bg-card/80 backdrop-blur-md">
+                                <div>
+                                    <h3 className="text-2xl font-black text-foreground tracking-tight">New Table</h3>
+                                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Expand your seating capacity</p>
+                                </div>
+                                <button onClick={() => setShowAddModal(false)} className="bg-muted/50 text-foreground hover:bg-muted p-2.5 rounded-2xl transition-all active:scale-90">
+                                    <X size={24} strokeWidth={2.5} />
                                 </button>
                             </div>
 
-                            <form onSubmit={handleAddTable} className="space-y-4">
-                                <div>
-                                    <label className="text-sm font-medium mb-1.5 block text-foreground">Table Name / Number</label>
+                            <form onSubmit={handleAddTable} className="p-6 md:p-8 space-y-8 flex-1 overflow-y-auto">
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Table Name/ID</label>
                                     <input
                                         type="text"
                                         value={formData.name}
                                         onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                        placeholder="e.g. Table 1, VIP-A"
-                                        className="input w-full"
+                                        className="input w-full bg-muted/30 border-2 border-transparent focus:border-primary/50 transition-all font-bold py-4 text-lg"
+                                        placeholder="e.g. Table 01"
                                         required
                                     />
-                                </div>
-                                <div>
-                                    <label className="text-sm font-medium mb-1.5 block text-foreground">Capacity (Seats)</label>
-                                    <input
-                                        type="number"
-                                        value={formData.capacity}
-                                        onChange={(e) => setFormData({ ...formData, capacity: e.target.value })}
-                                        min="1"
-                                        className="input w-full"
-                                        required
-                                    />
-                                </div>
-                                <div>
-                                    <label className="text-sm font-medium mb-1.5 block text-foreground">Location</label>
-                                    <select
-                                        value={formData.location}
-                                        onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                                        className="input w-full"
-                                    >
-                                        <option value="Indoor">Indoor</option>
-                                        <option value="Outdoor">Outdoor</option>
-                                        <option value="VIP">VIP</option>
-                                        <option value="Patio">Patio</option>
-                                        <option value="Bar">Bar</option>
-                                    </select>
                                 </div>
 
-                                <div className="flex gap-4 mt-8 pt-4 border-t border-border">
-                                    <button type="button" onClick={() => setShowAddModal(false)} className="btn-outline flex-1">
+                                <div className="grid grid-cols-2 gap-6">
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Capacity</label>
+                                        <input
+                                            type="number"
+                                            value={formData.capacity}
+                                            onChange={(e) => setFormData({ ...formData, capacity: e.target.value })}
+                                            min="1"
+                                            className="input w-full bg-muted/30 border-2 border-transparent focus:border-primary/50 transition-all font-bold py-4"
+                                            required
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Location</label>
+                                        <select
+                                            value={formData.location}
+                                            onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                                            className="input w-full bg-muted/30 border-2 border-transparent focus:border-primary/50 transition-all font-bold py-4 appearance-none"
+                                        >
+                                            <option value="Indoor">Indoor</option>
+                                            <option value="Outdoor">Outdoor</option>
+                                            <option value="VIP">VIP</option>
+                                            <option value="Patio">Patio</option>
+                                            <option value="Bar">Bar</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div className="pt-6 flex gap-4">
+                                    <button type="button" onClick={() => setShowAddModal(false)} className="flex-1 py-4 bg-muted/50 text-foreground font-black uppercase tracking-widest rounded-2xl border-2 border-border/50 hover:bg-muted transition-all active:scale-95">
                                         Cancel
                                     </button>
-                                    <button type="submit" className="btn-primary flex-1">
+                                    <button type="submit" className="flex-[2] py-4 bg-primary text-primary-foreground font-black uppercase tracking-widest rounded-2xl shadow-xl shadow-primary/20 hover:brightness-110 transition-all active:scale-95">
                                         Create Table
                                     </button>
                                 </div>
@@ -502,29 +513,38 @@ const TableManagement = () => {
             {/* View QR Modal */}
             <AnimatePresence>
                 {showQRModal && selectedTable && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/95">
                         <motion.div
-                            initial={{ opacity: 0, scale: 0.95 }}
+                            initial={{ opacity: 0, scale: 0.9 }}
                             animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.95 }}
-                            className="bg-card border border-border rounded-xl w-full max-w-sm text-center shadow-2xl p-6"
+                            exit={{ opacity: 0, scale: 0.9 }}
+                            className="bg-card w-full max-w-sm rounded-[2.5rem] shadow-2xl border-4 border-border flex flex-col items-center p-8 text-center"
                         >
-                            <div className="flex justify-end mb-2">
-                                <button onClick={() => setShowQRModal(false)} className="text-muted-foreground hover:text-foreground">
-                                    <X size={24} />
+                            <div className="w-full flex justify-between items-center mb-6">
+                                <div className="text-left">
+                                    <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Digital Node</h4>
+                                    <h2 className="text-2xl font-black text-foreground tracking-tight">{selectedTable.name}</h2>
+                                </div>
+                                <button onClick={() => setShowQRModal(false)} className="bg-muted text-foreground hover:bg-muted/80 p-2.5 rounded-2xl transition-all active:scale-90 shadow-lg border border-border/50">
+                                    <X size={22} strokeWidth={3} />
                                 </button>
                             </div>
 
-                            <h2 className="text-2xl font-bold mb-2 text-foreground">{selectedTable.name}</h2>
-                            <p className="text-muted-foreground mb-6">Scan to order</p>
-
-                            <div className="bg-white p-4 rounded-xl inline-block mb-6 shadow-inner">
-                                <img src={selectedTable.qrCodeImage} alt="Large QR" className="h-48 w-48" />
+                            <div className="bg-white p-6 rounded-[2rem] shadow-2xl mb-8 border-4 border-muted/20">
+                                <img
+                                    src={selectedTable.qrCodeImage}
+                                    alt="Table QR"
+                                    className="h-48 w-48 object-contain"
+                                />
                             </div>
 
-                            <button onClick={() => handleDownloadQR(selectedTable)} className="btn-primary w-full gap-2">
-                                <Download size={18} />
-                                Download PNG
+                            <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-8 leading-relaxed">
+                                Scan for instant access<br />to menu and ordering
+                            </p>
+
+                            <button onClick={() => handleDownloadQR(selectedTable)} className="w-full py-4 bg-primary text-primary-foreground font-black uppercase tracking-widest rounded-2xl flex items-center justify-center gap-3 shadow-xl shadow-primary/20 hover:brightness-110 transition-all active:scale-95 text-sm">
+                                <Download size={20} strokeWidth={3} />
+                                Download QR
                             </button>
                         </motion.div>
                     </div>

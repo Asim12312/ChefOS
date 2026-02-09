@@ -8,7 +8,7 @@ import { useAuth } from '../../context/AuthContext';
 
 const RestaurantOnboarding = () => {
     const navigate = useNavigate();
-    const { refreshUser } = useAuth();
+    const { fetchMe } = useAuth();
     const [loading, setLoading] = useState(false);
     const [uploadingLogo, setUploadingLogo] = useState(false);
     const [step, setStep] = useState(1);
@@ -57,9 +57,9 @@ const RestaurantOnboarding = () => {
                 localStorage.setItem('user', JSON.stringify(updatedUser));
 
                 // Refresh user in context
-                refreshUser();
+                await fetchMe();
 
-                toast.success('Welcome to Tablefy! Your restaurant is ready.');
+                toast.success('Welcome to ChefOS! Your restaurant is ready.');
                 // Navigate to dashboard after a brief delay
                 setTimeout(() => navigate('/dashboard'), 1500);
             }
@@ -111,10 +111,23 @@ const RestaurantOnboarding = () => {
         }
     };
 
+    const CUISINES = [
+        { label: 'Italian', icon: '🍝' },
+        { label: 'Japanese', icon: '🍣' },
+        { label: 'American', icon: '🍔' },
+        { label: 'Indian', icon: '🍛' },
+        { label: 'Mexican', icon: '🌮' },
+        { label: 'Chinese', icon: '🥡' },
+        { label: 'French', icon: '🥐' },
+        { label: 'Modern/Fusion', icon: '✨' },
+        { label: 'Other', icon: '🍽️' }
+    ];
+
     const steps = [
         { num: 1, title: 'Basics', icon: Store },
-        { num: 2, title: 'Location', icon: MapPin },
-        { num: 3, title: 'Contact', icon: Phone }
+        { num: 2, title: 'Cuisine', icon: Sparkles },
+        { num: 3, title: 'Location', icon: MapPin },
+        { num: 4, title: 'Contact', icon: Phone }
     ];
 
     return (
@@ -185,11 +198,9 @@ const RestaurantOnboarding = () => {
                                 <div key={s.num} className="relative z-10 flex items-center gap-4 group">
                                     <motion.div
                                         animate={{
-                                            backgroundColor: isActive || isCompleted ? 'rgba(var(--primary-rgb), 1)' : 'rgba(255,255,255,0.05)',
-                                            borderColor: isActive ? 'rgba(var(--primary-rgb), 0.5)' : 'rgba(255,255,255,0.1)',
                                             scale: isActive ? 1.1 : 1
                                         }}
-                                        className={`w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all duration-300 ${isCompleted ? 'bg-primary border-primary' : 'bg-white/5 border-white/10'}`}
+                                        className={`w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all duration-300 ${isCompleted || isActive ? 'bg-primary border-primary' : 'bg-white/5 border-white/10'}`}
                                     >
                                         {isCompleted ? <CheckCircle2 size={18} className="text-white" /> : <span className={`text-sm font-bold ${isActive ? 'text-white' : 'text-white/40'}`}>{s.num}</span>}
                                     </motion.div>
@@ -326,6 +337,50 @@ const RestaurantOnboarding = () => {
                                     className="flex-1 space-y-8"
                                 >
                                     <div>
+                                        <h2 className="text-2xl font-bold text-white mb-2 flex items-center gap-3">
+                                            Select Your Specialty
+                                            <div className="h-px flex-1 bg-white/10 ml-4" />
+                                        </h2>
+                                        <p className="text-white/40 text-sm mb-8">This helps us tailor your AI kitchen recommendations.</p>
+
+                                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                                            {CUISINES.map((cuisine) => (
+                                                <button
+                                                    key={cuisine.label}
+                                                    type="button"
+                                                    onClick={() => setFormData(prev => ({ ...prev, cuisine: cuisine.label }))}
+                                                    className={`p-6 rounded-2xl border-2 transition-all group relative overflow-hidden flex flex-col items-center gap-3 ${formData.cuisine === cuisine.label
+                                                        ? 'bg-primary/10 border-primary text-primary shadow-lg shadow-primary/10'
+                                                        : 'bg-white/5 border-white/5 text-white/60 hover:border-white/20 hover:bg-white/10'
+                                                        }`}
+                                                >
+                                                    <span className="text-3xl group-hover:scale-110 transition-transform">{cuisine.icon}</span>
+                                                    <span className="font-bold text-sm tracking-tight">{cuisine.label}</span>
+                                                    {formData.cuisine === cuisine.label && (
+                                                        <motion.div
+                                                            layoutId="active-cuisine"
+                                                            className="absolute top-2 right-2"
+                                                        >
+                                                            <CheckCircle2 size={16} />
+                                                        </motion.div>
+                                                    )}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </motion.div>
+                            )}
+
+                            {step === 3 && (
+                                <motion.div
+                                    key="step3"
+                                    initial={{ opacity: 0, x: 20 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    exit={{ opacity: 0, x: -20 }}
+                                    transition={{ duration: 0.3 }}
+                                    className="flex-1 space-y-8"
+                                >
+                                    <div>
                                         <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
                                             Location Details
                                             <div className="h-px flex-1 bg-white/10 ml-4" />
@@ -392,9 +447,9 @@ const RestaurantOnboarding = () => {
                                 </motion.div>
                             )}
 
-                            {step === 3 && (
+                            {step === 4 && (
                                 <motion.div
-                                    key="step3"
+                                    key="step4"
                                     initial={{ opacity: 0, x: 20 }}
                                     animate={{ opacity: 1, x: 0 }}
                                     exit={{ opacity: 0, x: -20 }}
@@ -463,8 +518,8 @@ const RestaurantOnboarding = () => {
                             )}
 
                             <button
-                                type={step === 3 ? 'submit' : 'button'}
-                                onClick={step === 3 ? undefined : nextStep}
+                                type={step === 4 ? 'submit' : 'button'}
+                                onClick={step === 4 ? undefined : nextStep}
                                 disabled={loading}
                                 className="bg-primary hover:bg-primary-dark text-black font-semibold rounded-xl px-8 py-3 flex items-center gap-2 transition-all hover:scale-105 active:scale-95 shadow-lg shadow-primary/25"
                             >
@@ -472,8 +527,8 @@ const RestaurantOnboarding = () => {
                                     <Loader className="animate-spin" size={20} />
                                 ) : (
                                     <>
-                                        {step === 3 ? 'Launch Restaurant' : 'Continue'}
-                                        {step !== 3 && <ArrowRight size={18} />}
+                                        {step === 4 ? 'Launch Restaurant' : 'Continue'}
+                                        {step !== 4 && <ArrowRight size={18} />}
                                     </>
                                 )}
                             </button>

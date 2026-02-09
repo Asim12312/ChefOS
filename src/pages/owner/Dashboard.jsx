@@ -11,10 +11,12 @@ import {
 import {
     TrendingUp, ShoppingCart, DollarSign, Users,
     ArrowUpRight, Clock, MoreHorizontal, Calendar,
-    Menu, BarChart3, RefreshCw, AlertTriangle, Package
+    Menu, BarChart3, RefreshCw, AlertTriangle, Package, Sparkles, Lock,
+    QrCode
 } from 'lucide-react';
 import api from '../../config/api';
 import toast from 'react-hot-toast';
+import PremiumGuard from '../../components/dashboard/PremiumGuard';
 
 const Dashboard = () => {
     const { user } = useAuth();
@@ -30,6 +32,7 @@ const Dashboard = () => {
     const [peakHoursData, setPeakHoursData] = useState([]);
     const [lowStockItems, setLowStockItems] = useState([]);
     const [notifications, setNotifications] = useState([]);
+    const [isPeakHoursLocked, setIsPeakHoursLocked] = useState(false);
 
     // Chart Data State
     const [chartData, setChartData] = useState([]);
@@ -51,6 +54,21 @@ const Dashboard = () => {
 
             try {
                 setLoading(true);
+
+                // Use safe wrappers to prevent one failure from breaking everything
+                const safeFetch = async (url, fallback = { data: { success: false } }) => {
+                    try {
+                        return await api.get(url, { _skipErrorToast: true });
+                    } catch (err) {
+                        if (err.response?.status === 403) {
+                            return { data: { success: false, locked: true }, status: 403 };
+                        }
+                        return fallback;
+                    }
+                };
+
+                const isPremium = user?.restaurant?.subscription?.plan === 'PREMIUM';
+
                 const [
                     summaryRes,
                     peakHoursRes,
@@ -58,11 +76,11 @@ const Dashboard = () => {
                     notificationsRes,
                     topItemsRes
                 ] = await Promise.all([
-                    api.get(`/analytics/dashboard/${restaurantId}`),
-                    api.get(`/analytics/peak-hours/${restaurantId}`),
-                    api.get(`/inventory/${restaurantId}`),
-                    api.get(`/analytics/notifications/${restaurantId}`),
-                    api.get(`/analytics/top-items/${restaurantId}?limit=5`)
+                    safeFetch(`/analytics/dashboard/${restaurantId}`),
+                    isPremium ? safeFetch(`/analytics/peak-hours/${restaurantId}`) : Promise.resolve({ data: { success: false, locked: true }, status: 403 }),
+                    safeFetch(`/inventory/${restaurantId}`),
+                    safeFetch(`/analytics/notifications/${restaurantId}`),
+                    safeFetch(`/analytics/top-items/${restaurantId}?limit=5`)
                 ]);
 
                 // 1. Summary & Trends
@@ -74,31 +92,36 @@ const Dashboard = () => {
                 }
 
                 // 2. Peak Hours Chart
-                let formattedPeakHours = [];
-                const hourly = peakHoursRes.data.success ? (peakHoursRes.data.data.hourlyBreakdown || []) : [];
-
-                if (hourly.length > 0) {
-                    formattedPeakHours = hourly.map(h => ({
-                        name: h._id > 12 ? `${h._id - 12}pm` : h._id === 12 ? '12pm' : h._id === 0 ? '12am' : `${h._id}am`,
-                        orders: h.orderCount,
-                        revenue: h.totalRevenue
-                    })).sort((a, b) => 0);
+                if (peakHoursRes.status === 403 || peakHoursRes.data.locked) {
+                    setIsPeakHoursLocked(true);
                 } else {
-                    // Default Skeleton Data (11am - 10pm)
-                    formattedPeakHours = Array.from({ length: 12 }, (_, i) => {
-                        const hour = i + 11;
-                        return {
-                            name: hour > 12 ? `${hour - 12}pm` : hour === 12 ? '12pm' : hour === 24 ? '12am' : `${hour}am`,
-                            orders: 0,
-                            revenue: 0
-                        };
-                    });
-                }
-                setPeakHoursData(formattedPeakHours);
+                    setIsPeakHoursLocked(false);
+                    let formattedPeakHours = [];
+                    const hourly = peakHoursRes.data.success ? (peakHoursRes.data.data.hourlyBreakdown || []) : [];
 
-                // Set initial chart data (Today)
-                if (timeRange === 'Today') {
-                    setChartData(formattedPeakHours.map(d => ({ name: d.name, sales: d.revenue })));
+                    if (hourly.length > 0) {
+                        formattedPeakHours = hourly.map(h => ({
+                            name: h._id > 12 ? `${h._id - 12}pm` : h._id === 12 ? '12pm' : h._id === 0 ? '12am' : `${h._id}am`,
+                            orders: h.orderCount,
+                            revenue: h.totalRevenue
+                        })).sort((a, b) => 0);
+                    } else {
+                        // Default Skeleton Data (11am - 10pm)
+                        formattedPeakHours = Array.from({ length: 12 }, (_, i) => {
+                            const hour = i + 11;
+                            return {
+                                name: hour > 12 ? `${hour - 12}pm` : hour === 12 ? '12pm' : hour === 24 ? '12am' : `${hour}am`,
+                                orders: 0,
+                                revenue: 0
+                            };
+                        });
+                    }
+                    setPeakHoursData(formattedPeakHours);
+
+                    // Set initial chart data (Today)
+                    if (timeRange === 'Today') {
+                        setChartData(formattedPeakHours.map(d => ({ name: d.name, sales: d.revenue })));
+                    }
                 }
 
                 // 3. Low Stock Items
@@ -109,7 +132,7 @@ const Dashboard = () => {
                         .map(item => ({
                             name: item.name,
                             stock: item.stockQuantity,
-                            unit: 'units', // Defaulting as unit comes from schema?
+                            unit: 'units',
                             status: item.stockQuantity === 0 ? 'critical' : 'low'
                         }));
                     setLowStockItems(lowStock);
@@ -121,8 +144,8 @@ const Dashboard = () => {
                 }
 
             } catch (error) {
-                console.error('Error fetching dashboard data:', error);
-                toast.error('Failed to load some dashboard data');
+                console.error('Critical dashboard error:', error);
+                toast.error('Could not load some dashboard metrics');
             } finally {
                 setLoading(false);
             }
@@ -238,10 +261,16 @@ const Dashboard = () => {
 
     return (
         <div className="flex bg-background min-h-screen text-foreground font-sans selection:bg-primary/30 transition-colors duration-300">
-            <Sidebar className={mobileMenuOpen ? "flex fixed inset-y-0 left-0 z-50 w-64 bg-card shadow-2xl" : "hidden lg:flex"} />
+            <Sidebar
+                open={mobileMenuOpen}
+                onClose={() => setMobileMenuOpen(false)}
+            />
 
             {mobileMenuOpen && (
-                <div
+                <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
                     className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 lg:hidden"
                     onClick={() => setMobileMenuOpen(false)}
                 />
@@ -250,85 +279,100 @@ const Dashboard = () => {
             <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
                 <Header onMobileMenuClick={() => setMobileMenuOpen(true)} />
 
-                <main className="flex-1 overflow-y-auto p-4 lg:p-8 custom-scrollbar">
+                <main className="flex-1 overflow-y-auto p-3 sm:p-4 lg:p-8 custom-scrollbar">
                     {/* Welcome Section */}
-                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 sm:mb-8 gap-3 sm:gap-4">
                         <motion.div
                             initial={{ opacity: 0, x: -20 }}
                             animate={{ opacity: 1, x: 0 }}
                         >
-                            <h1 className="text-3xl font-display font-bold text-foreground mb-1">
+                            <h1 className="text-2xl sm:text-3xl font-display font-bold text-foreground mb-1">
                                 Dashboard
                             </h1>
-                            <p className="text-muted-foreground">
+                            <p className="text-xs sm:text-sm text-muted-foreground">
                                 Overview for <span className="text-foreground font-semibold">{new Date().toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
                             </p>
                         </motion.div>
 
-                        <div className="flex gap-2">
-                            <button onClick={handleRefresh} className="btn-outline gap-2">
-                                <RefreshCw size={14} /> Refresh
+                        <div className="flex gap-1.5 sm:gap-2 flex-wrap">
+                            {user?.restaurant?.subscription?.plan !== 'PREMIUM' && (
+                                <motion.button
+                                    whileHover={{ scale: 1.02 }}
+                                    whileTap={{ scale: 0.98 }}
+                                    onClick={() => navigate('/subscription')}
+                                    className="bg-primary/10 text-primary border border-primary/20 px-4 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 hover:bg-primary/20 transition-all shadow-sm"
+                                >
+                                    <Sparkles size={16} />
+                                    Upgrade to Premium
+                                </motion.button>
+                            )}
+                            <button onClick={handleRefresh} className="btn-outline gap-1.5 sm:gap-2 px-3 py-2 sm:px-4 sm:py-2.5 text-xs sm:text-sm hover:bg-primary/5">
+                                <RefreshCw size={14} className="hidden sm:inline" />
+                                <RefreshCw size={12} className="sm:hidden" />
+                                <span>Refresh</span>
                             </button>
-                            <button className="btn-primary gap-2">
-                                <TrendingUp size={14} /> Reports
+                            <button onClick={() => navigate('/analytics')} className="btn-primary gap-1.5 sm:gap-2 px-3 py-2 sm:px-4 sm:py-2.5 text-xs sm:text-sm shadow-lg shadow-primary/20">
+                                <TrendingUp size={14} className="hidden sm:inline" />
+                                <TrendingUp size={12} className="sm:hidden" />
+                                <span>Reports</span>
                             </button>
                         </div>
                     </div>
 
-                    {/* KPI Stats Grid */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                    {/* KPI Stats Grid - "Coursera Style" Horizontal Scroll on Mobile */}
+                    <div className="flex overflow-x-auto pb-4 -mx-4 px-4 sm:mx-0 sm:px-0 sm:pb-0 sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8 snap-x snap-mandatory carousel-scrollbar touch-pan-x">
                         {stats.map((stat, i) => (
                             <motion.div
                                 key={i}
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: i * 0.1 }}
-                                className="bg-card border border-border/50 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all relative overflow-hidden group"
+                                className="bg-card border border-border/50 rounded-xl sm:rounded-2xl p-4 sm:p-5 shadow-sm hover:shadow-md transition-all relative overflow-hidden group min-w-[260px] sm:min-w-0 snap-center flex-shrink-0"
                             >
-                                <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                                    <stat.icon size={64} className={stat.color} />
+                                <div className="absolute top-0 right-0 p-3 sm:p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                                    <stat.icon size={48} className={`${stat.color} sm:w-16 sm:h-16`} />
                                 </div>
-                                <div className="flex justify-between items-start mb-3 relative z-10">
-                                    <div className={`p-2.5 rounded-xl ${stat.bg} ${stat.color}`}>
-                                        <stat.icon size={20} />
+                                <div className="flex justify-between items-start mb-2 sm:mb-3 relative z-10">
+                                    <div className={`p-2 sm:p-2.5 rounded-lg sm:rounded-xl ${stat.bg} ${stat.color}`}>
+                                        <stat.icon size={18} className="sm:w-5 sm:h-5" />
                                     </div>
-                                    <div className={`flex items-center gap-1 text-xs font-bold px-2 py-1 rounded-full ${stat.positive ? 'bg-green-500/10 text-green-600 dark:text-green-400' : 'bg-red-500/10 text-red-600 dark:text-red-400'}`}>
-                                        {stat.positive ? <TrendingUp size={12} /> : <TrendingUp size={12} className="rotate-180" />}
-                                        {stat.trend}
+                                    <div className={`flex items-center gap-0.5 sm:gap-1 text-[10px] sm:text-xs font-bold px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full ${stat.positive ? 'bg-green-500/10 text-green-600 dark:text-green-400' : 'bg-red-500/10 text-red-600 dark:text-red-400'}`}>
+                                        {stat.positive ? <TrendingUp size={10} className="sm:w-3 sm:h-3" /> : <TrendingUp size={10} className="rotate-180 sm:w-3 sm:h-3" />}
+                                        <span className="hidden xs:inline">{stat.trend}</span>
                                     </div>
                                 </div>
-                                <h3 className="text-2xl font-bold text-foreground mb-1 tracking-tight relative z-10">{stat.value}</h3>
+                                <h3 className="text-xl sm:text-2xl font-bold text-foreground mb-1 tracking-tight relative z-10">{stat.value}</h3>
                                 <p className="text-sm text-muted-foreground font-medium relative z-10">{stat.title}</p>
                             </motion.div>
                         ))}
                     </div>
 
                     {/* Charts Grid */}
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8 mb-6 sm:mb-8">
                         {/* Main Sales Chart */}
                         <motion.div
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
-                            className="lg:col-span-2 bg-card border border-border/50 rounded-2xl p-6 shadow-sm flex flex-col"
+                            className="lg:col-span-2 bg-card border border-border/50 rounded-xl sm:rounded-2xl p-4 sm:p-5 lg:p-6 shadow-sm flex flex-col"
                         >
-                            <div className="flex items-center justify-between mb-6">
+                            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 sm:mb-6 gap-3">
                                 <div>
-                                    <h3 className="text-lg font-bold text-foreground">Revenue Flow</h3>
-                                    <p className="text-sm text-muted-foreground">Live sales tracking</p>
+                                    <h3 className="text-base sm:text-lg font-bold text-foreground">Revenue Flow</h3>
+                                    <p className="text-xs sm:text-sm text-muted-foreground">Live sales tracking</p>
                                 </div>
-                                <div className="flex gap-1 bg-muted/30 p-1 rounded-lg">
+                                <div className="flex gap-0.5 sm:gap-1 bg-muted/30 p-0.5 sm:p-1 rounded-lg w-full sm:w-auto">
                                     {['Today', 'Week', 'Month'].map((period) => (
                                         <button
                                             key={period}
                                             onClick={() => setTimeRange(period)}
-                                            className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${timeRange === period ? 'bg-background shadow text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                                            className={`flex-1 sm:flex-none px-2 sm:px-3 py-1 sm:py-1.5 text-[10px] sm:text-xs font-semibold rounded-md transition-all ${timeRange === period ? 'bg-background shadow text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
                                         >
                                             {period}
                                         </button>
                                     ))}
                                 </div>
                             </div>
-                            <div className="h-[300px] w-full flex-1 min-h-0">
+                            <div className="h-[250px] sm:h-[300px] w-full flex-1 min-h-0">
                                 {loading ? (
                                     <div className="w-full h-full animate-pulse bg-muted/20 rounded-xl" />
                                 ) : (
@@ -387,20 +431,20 @@ const Dashboard = () => {
                         </motion.div>
 
                         {/* Side Widgets Column */}
-                        <div className="space-y-6">
+                        <div className="space-y-4 sm:space-y-6">
 
                             {/* Peak Hours Widget */}
                             <motion.div
                                 initial={{ opacity: 0, x: 20 }}
                                 animate={{ opacity: 1, x: 0 }}
                                 transition={{ delay: 0.1 }}
-                                className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm"
+                                className="bg-card border border-border/50 rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-sm"
                             >
-                                <div className="mb-4">
-                                    <h3 className="text-lg font-bold text-foreground">Peak Hours</h3>
-                                    <p className="text-xs text-muted-foreground">Traffic intensity by hour</p>
+                                <div className="mb-3 sm:mb-4">
+                                    <h3 className="text-base sm:text-lg font-bold text-foreground">Peak Hours</h3>
+                                    <p className="text-[10px] sm:text-xs text-muted-foreground">Traffic intensity by hour</p>
                                 </div>
-                                <div className="h-[200px] w-full">
+                                <div className="h-[180px] sm:h-[200px] w-full relative">
                                     {loading ? (
                                         <div className="flex gap-2 h-full items-end pb-2">
                                             {[...Array(7)].map((_, i) => (
@@ -408,48 +452,54 @@ const Dashboard = () => {
                                             ))}
                                         </div>
                                     ) : (
-                                        <ResponsiveContainer width="100%" height="100%">
-                                            <BarChart data={peakHoursData}>
-                                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" strokeOpacity={0.8} />
-                                                <XAxis
-                                                    dataKey="name"
-                                                    axisLine={false}
-                                                    tickLine={false}
-                                                    tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10, fontWeight: 500 }}
-                                                    dy={5}
-                                                />
-                                                <YAxis
-                                                    axisLine={false}
-                                                    tickLine={false}
-                                                    tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10, fontWeight: 500 }}
-                                                    width={25}
-                                                />
-                                                <Bar dataKey="orders" radius={[4, 4, 0, 0]}>
-                                                    {peakHoursData.map((entry, index) => (
-                                                        <Cell
-                                                            key={`cell-${index}`}
-                                                            fill={entry.isSkeleton ? 'hsl(var(--muted))' : (entry.orders > 60 ? 'hsl(var(--primary))' : 'hsl(var(--muted))')}
-                                                        />
-                                                    ))}
-                                                </Bar>
-                                                <Tooltip
-                                                    content={({ active, payload }) => {
-                                                        if (active && payload && payload.length) {
-                                                            const data = payload[0].payload;
-                                                            if (data.isSkeleton) return null;
-                                                            return (
-                                                                <div className="bg-popover border border-border p-2 rounded-lg shadow-md">
-                                                                    <p className="text-sm font-semibold text-foreground">{data.name}</p>
-                                                                    <p className="text-sm text-primary">Orders: {data.orders}</p>
-                                                                </div>
-                                                            );
-                                                        }
-                                                        return null;
-                                                    }}
-                                                    cursor={{ fill: 'transparent' }}
-                                                />
-                                            </BarChart>
-                                        </ResponsiveContainer>
+                                        <PremiumGuard
+                                            isLocked={isPeakHoursLocked}
+                                            featureName="Peak Hours Analysis"
+                                            compact
+                                        >
+                                            <ResponsiveContainer width="100%" height="100%">
+                                                <BarChart data={peakHoursData}>
+                                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" strokeOpacity={0.8} />
+                                                    <XAxis
+                                                        dataKey="name"
+                                                        axisLine={false}
+                                                        tickLine={false}
+                                                        tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10, fontWeight: 500 }}
+                                                        dy={5}
+                                                    />
+                                                    <YAxis
+                                                        axisLine={false}
+                                                        tickLine={false}
+                                                        tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10, fontWeight: 500 }}
+                                                        width={25}
+                                                    />
+                                                    <Bar dataKey="orders" radius={[4, 4, 0, 0]}>
+                                                        {peakHoursData.map((entry, index) => (
+                                                            <Cell
+                                                                key={`cell-${index}`}
+                                                                fill={entry.isSkeleton ? 'hsl(var(--muted))' : (entry.orders > 60 ? 'hsl(var(--primary))' : 'hsl(var(--primary)/0.5)')}
+                                                            />
+                                                        ))}
+                                                    </Bar>
+                                                    <Tooltip
+                                                        content={({ active, payload }) => {
+                                                            if (active && payload && payload.length) {
+                                                                const data = payload[0].payload;
+                                                                if (data.isSkeleton) return null;
+                                                                return (
+                                                                    <div className="bg-popover border border-border p-2 rounded-lg shadow-md">
+                                                                        <p className="text-sm font-semibold text-foreground">{data.name}</p>
+                                                                        <p className="text-sm text-primary">Orders: {data.orders}</p>
+                                                                    </div>
+                                                                );
+                                                            }
+                                                            return null;
+                                                        }}
+                                                        cursor={{ fill: 'transparent' }}
+                                                    />
+                                                </BarChart>
+                                            </ResponsiveContainer>
+                                        </PremiumGuard>
                                     )}
                                 </div>
                             </motion.div>
@@ -459,17 +509,17 @@ const Dashboard = () => {
                                 initial={{ opacity: 0, x: 20 }}
                                 animate={{ opacity: 1, x: 0 }}
                                 transition={{ delay: 0.2 }}
-                                className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm"
+                                className="bg-card border border-border/50 rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-sm"
                             >
-                                <div className="flex justify-between items-center mb-4">
-                                    <h3 className="text-lg font-bold text-foreground">Low Stock Alerts</h3>
+                                <div className="flex justify-between items-center mb-3 sm:mb-4">
+                                    <h3 className="text-base sm:text-lg font-bold text-foreground">Low Stock Alerts</h3>
                                     {!loading && lowStockItems.length > 0 && (
-                                        <span className="bg-red-500/10 text-red-500 text-xs font-bold px-2 py-1 rounded-full animate-pulse">
+                                        <span className="bg-red-500/10 text-red-500 text-[10px] sm:text-xs font-bold px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full animate-pulse">
                                             {lowStockItems.length} Alert{lowStockItems.length !== 1 ? 's' : ''}
                                         </span>
                                     )}
                                 </div>
-                                <div className="space-y-3">
+                                <div className="space-y-2 sm:space-y-3">
                                     {loading ? (
                                         [...Array(3)].map((_, i) => (
                                             <div key={i} className="flex items-center justify-between p-2 bg-muted/20 rounded-lg animate-pulse">
@@ -485,17 +535,17 @@ const Dashboard = () => {
                                     ) : (
                                         lowStockItems.length > 0 ? (
                                             lowStockItems.map((item, i) => (
-                                                <div key={i} className="flex items-center justify-between p-2 bg-muted/40 rounded-lg">
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="p-2 bg-red-500/10 text-red-500 rounded-lg">
-                                                            <AlertTriangle size={14} />
+                                                <div key={i} className="flex items-center justify-between p-2 bg-muted/40 rounded-lg gap-2">
+                                                    <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
+                                                        <div className="p-1.5 sm:p-2 bg-red-500/10 text-red-500 rounded-lg flex-shrink-0">
+                                                            <AlertTriangle size={12} className="sm:w-3.5 sm:h-3.5" />
                                                         </div>
-                                                        <div>
-                                                            <p className="text-sm font-semibold text-foreground">{item.name}</p>
-                                                            <p className="text-xs text-muted-foreground">{item.stock} {item.unit} remaining</p>
+                                                        <div className="min-w-0 flex-1">
+                                                            <p className="text-xs sm:text-sm font-semibold text-foreground truncate">{item.name}</p>
+                                                            <p className="text-[10px] sm:text-xs text-muted-foreground">{item.stock} {item.unit} remaining</p>
                                                         </div>
                                                     </div>
-                                                    <button className="text-xs font-bold text-primary hover:underline">Restock</button>
+                                                    <button onClick={() => navigate('/inventory')} className="text-[10px] sm:text-xs font-bold text-primary hover:underline whitespace-nowrap flex-shrink-0">Restock</button>
                                                 </div>
                                             ))
                                         ) : (
@@ -511,31 +561,33 @@ const Dashboard = () => {
                     </div>
 
                     {/* Bottom Section: Top Items & Activity */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 lg:gap-8">
                         {/* Popular Items */}
-                        <div className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm">
-                            <div className="flex items-center justify-between mb-6">
-                                <h3 className="text-lg font-bold text-foreground">Top Selling Items</h3>
-                                <button className="text-sm text-primary font-medium hover:underline flex items-center gap-1">
-                                    View Menu <ArrowUpRight size={14} />
+                        <div className="bg-card border border-border/50 rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-sm">
+                            <div className="flex items-center justify-between mb-4 sm:mb-6">
+                                <h3 className="text-base sm:text-lg font-bold text-foreground">Top Selling Items</h3>
+                                <button onClick={() => navigate('/menu-management')} className="text-xs sm:text-sm text-primary font-medium hover:underline flex items-center gap-1">
+                                    View Menu <ArrowUpRight size={12} className="sm:w-3.5 sm:h-3.5" />
                                 </button>
                             </div>
-                            <div className="space-y-4">
+                            <div className="space-y-3 sm:space-y-4">
                                 {analytics?.topItems?.slice(0, 4).map((item, i) => (
-                                    <div key={i} className="flex items-center gap-4 group">
-                                        <div className="w-10 h-10 rounded-lg bg-secondary flex items-center justify-center font-bold text-muted-foreground group-hover:text-primary group-hover:bg-primary/10 transition-colors">
+                                    <div key={i} className="flex items-center gap-2 sm:gap-4 group">
+                                        <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-secondary flex items-center justify-center font-bold text-sm sm:text-base text-muted-foreground group-hover:text-primary group-hover:bg-primary/10 transition-colors flex-shrink-0">
                                             {i + 1}
                                         </div>
                                         <div className="flex-1 min-w-0">
-                                            <h4 className="font-medium text-foreground truncate">{item.itemName}</h4>
-                                            <div className="flex items-center gap-2">
-                                                <div className="h-1.5 flex-1 bg-muted rounded-full overflow-hidden">
+                                            <h4 className="font-medium text-sm sm:text-base text-foreground truncate">{item.itemName}</h4>
+                                            <div className="flex items-center gap-1.5 sm:gap-2">
+                                                <div className="h-1 sm:h-1.5 flex-1 bg-muted rounded-full overflow-hidden">
                                                     <div className="h-full bg-primary" style={{ width: `${Math.random() * 40 + 60}%` }}></div>
                                                 </div>
-                                                <span className="text-xs text-muted-foreground">{item.totalOrdered} orders</span>
+                                                <span className="text-[10px] sm:text-xs text-muted-foreground whitespace-nowrap">{item.totalOrdered} orders</span>
                                             </div>
                                         </div>
-                                        <span className="font-bold text-foreground">${item.totalRevenue}</span>
+                                        <span className="font-bold text-sm sm:text-base text-foreground flex-shrink-0">
+                                            ${parseFloat(item.totalRevenue).toFixed(2)}
+                                        </span>
                                     </div>
                                 ))}
                                 {(!analytics?.topItems || analytics.topItems.length === 0) && (
@@ -545,18 +597,22 @@ const Dashboard = () => {
                         </div>
 
                         {/* Quick Actions Grid */}
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                             {[
-                                { label: 'New Reservation', icon: Calendar, color: 'text-blue-500', bg: 'bg-blue-500/10' },
-                                { label: 'Manage Inventory', icon: Package, color: 'text-orange-500', bg: 'bg-orange-500/10' },
-                                { label: 'Financial Report', icon: BarChart3, color: 'text-green-500', bg: 'bg-green-500/10' }, // Changed color to green for finance
-                                { label: 'Staff Schedule', icon: Users, color: 'text-pink-500', bg: 'bg-pink-500/10' },
+                                { label: 'Manage Inventory', icon: Package, color: 'text-orange-500', bg: 'bg-orange-500/10', to: '/inventory' },
+                                { label: 'Financial Report', icon: BarChart3, color: 'text-green-500', bg: 'bg-green-500/10', to: '/analytics' },
+                                { label: 'Live Orders', icon: ShoppingCart, color: 'text-blue-500', bg: 'bg-blue-500/10', to: '/orders' },
+                                { label: 'QR Management', icon: QrCode, color: 'text-primary', bg: 'bg-primary/10', to: '/qr-codes' },
                             ].map((action, i) => (
-                                <button key={i} className="flex flex-col items-center justify-center p-6 bg-card border border-border/50 rounded-2xl hover:bg-muted/50 transition-all hover:scale-[1.02] active:scale-[0.98]">
-                                    <div className={`w-12 h-12 rounded-full ${action.bg} flex items-center justify-center mb-3`}>
-                                        <action.icon size={24} className={action.color} />
+                                <button
+                                    key={i}
+                                    onClick={() => navigate(action.to)}
+                                    className="flex flex-col items-center justify-center p-4 sm:p-6 bg-card border border-border/50 rounded-xl sm:rounded-2xl hover:bg-muted/50 transition-all hover:scale-[1.02] active:scale-[0.98] min-h-[120px] sm:min-h-[160px] cursor-pointer shadow-lg shadow-black/5"
+                                >
+                                    <div className={`w-10 h-10 sm:w-14 sm:h-14 rounded-full ${action.bg} flex items-center justify-center mb-2 sm:mb-4`}>
+                                        <action.icon size={20} className={`${action.color} sm:w-7 sm:h-7`} />
                                     </div>
-                                    <span className="font-semibold text-foreground text-sm">{action.label}</span>
+                                    <span className="font-bold text-foreground text-[10px] sm:text-xs uppercase tracking-widest text-center leading-tight px-2">{action.label}</span>
                                 </button>
                             ))}
                         </div>
