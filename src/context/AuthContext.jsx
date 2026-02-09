@@ -9,14 +9,20 @@ export const AuthProvider = ({ children }) => {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        // Check if user is logged in on mount
-        const token = localStorage.getItem('token');
-        const savedUser = localStorage.getItem('user');
+        const initAuth = async () => {
+            const token = localStorage.getItem('token');
+            const savedUser = localStorage.getItem('user');
 
-        if (token && savedUser) {
-            setUser(JSON.parse(savedUser));
-        }
-        setLoading(false);
+            if (token) {
+                if (savedUser) {
+                    setUser(JSON.parse(savedUser));
+                }
+                // Always fetch fresh data on reload to ensure state consistency (like premium status)
+                await fetchMe();
+            }
+            setLoading(false);
+        };
+        initAuth();
     }, []);
 
     const login = async (email, password) => {
@@ -86,10 +92,37 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
-    const refreshUser = () => {
-        const savedUser = localStorage.getItem('user');
-        if (savedUser) {
-            setUser(JSON.parse(savedUser));
+    const fetchMe = async () => {
+        try {
+            const response = await api.get('/auth/me');
+            const updatedUser = response.data.data;
+            localStorage.setItem('user', JSON.stringify(updatedUser));
+            setUser(updatedUser);
+            return updatedUser;
+        } catch (error) {
+            // Attempt token refresh if unauthorized
+            if (error.response?.status === 401) {
+                const refreshed = await tryRefresh();
+                if (refreshed) return fetchMe(); // Retry
+            }
+            console.error('Error fetching user data:', error);
+            return null;
+        }
+    };
+
+    const tryRefresh = async () => {
+        const refreshToken = localStorage.getItem('refreshToken');
+        if (!refreshToken) return false;
+
+        try {
+            const res = await api.post('/auth/refresh', { refreshToken });
+            const { token, refreshToken: newRefreshToken } = res.data.data;
+            localStorage.setItem('token', token);
+            localStorage.setItem('refreshToken', newRefreshToken);
+            return true;
+        } catch (err) {
+            logout(); // Force logout if refresh fails
+            return false;
         }
     };
 
@@ -100,7 +133,8 @@ export const AuthProvider = ({ children }) => {
         register,
         logout,
         checkRestaurantStatus,
-        refreshUser,
+        fetchMe,
+        tryRefresh,
         setUser,
         isAuthenticated: !!user,
     };

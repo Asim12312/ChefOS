@@ -6,6 +6,7 @@ const CartContext = createContext();
 export const useCart = () => useContext(CartContext);
 
 export const CartProvider = ({ children }) => {
+    // Context provider for shopping cart functionality
     // Initialize cart from localStorage if available
     const [cart, setCart] = useState(() => {
         try {
@@ -22,6 +23,7 @@ export const CartProvider = ({ children }) => {
     }, [cart]);
 
     const addToCart = (item, quantity = 1, specialInstructions = '') => {
+        let action = '';
         setCart(prev => {
             const existingItemIndex = prev.findIndex(cartItem =>
                 cartItem._id === item._id &&
@@ -29,17 +31,34 @@ export const CartProvider = ({ children }) => {
             );
 
             if (existingItemIndex > -1) {
-                // Update quantity if item exists
+                action = 'updated';
                 const newCart = [...prev];
                 newCart[existingItemIndex].quantity += quantity;
-                toast.success(`Updated quantity for ${item.name}`);
                 return newCart;
             } else {
-                // Add new item
-                toast.success(`Added ${item.name} to cart`);
+                action = 'added';
                 return [...prev, { ...item, quantity, specialInstructions }];
             }
         });
+
+        // Toast outside the reducer
+        // Note: 'action' variable won't work reliably here because setCart is async/batched but the 
+        // reducer runs synchronously during render/commit? No, setState updater runs later.
+        // Actually, for a simple click handler, reading 'cart' state directly is usually safe enough 
+        // to decide the toast, OR just toast "Cart updated".
+        // Let's rely on checking the cart state *before* the update for the message, 
+        // but perform the update functionally for safety.
+
+        const existingItem = cart.find(cartItem =>
+            cartItem._id === item._id &&
+            cartItem.specialInstructions === specialInstructions
+        );
+
+        if (existingItem) {
+            toast.success(`Updated quantity for ${item.name}`);
+        } else {
+            toast.success(`Added ${item.name} to cart`);
+        }
     };
 
     const removeFromCart = (itemId, specialInstructions) => {

@@ -1,7 +1,7 @@
 import axios from 'axios';
 import toast from 'react-hot-toast';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const API_BASE_URL = '/api';
 
 // Create axios instance
 const api = axios.create({
@@ -60,8 +60,10 @@ api.interceptors.response.use(
         }
 
         // Handle other errors
-        const message = error.response?.data?.message || 'An error occurred';
-        toast.error(message);
+        if (!error.config?._skipErrorToast) {
+            const message = error.response?.data?.message || 'An error occurred';
+            toast.error(message);
+        }
 
         return Promise.reject(error);
     }
