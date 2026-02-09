@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X, QrCode } from "lucide-react";
 import { Link } from "react-router-dom";
+import Logo from "../common/Logo";
 
 const navLinks = [
     { name: "Features", href: "#features" },
@@ -36,17 +37,9 @@ export const Navbar = () => {
                 <div className="max-w-7xl mx-auto px-6 md:px-12">
                     <div className="flex items-center justify-between h-20">
                         {/* Logo */}
-                        <motion.a
-                            href="#"
-                            className="flex items-center gap-2 group"
-                            whileHover={{ scale: 1.02 }}
-                            whileTap={{ scale: 0.98 }}
-                        >
-                            <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center shadow-lg">
-                                <QrCode className="w-5 h-5 text-primary-foreground" />
-                            </div>
-                            <span className="font-logo-stylish text-2xl tracking-wide text-foreground">Tablefy</span>
-                        </motion.a>
+                        <Link to="/" className="group">
+                            <Logo className="w-auto h-12" />
+                        </Link>
 
                         {/* Desktop Navigation */}
                         <div className="hidden md:flex items-center gap-8">
@@ -95,37 +88,48 @@ export const Navbar = () => {
             {/* Mobile Menu */}
             <AnimatePresence>
                 {isMobileMenuOpen && (
-                    <motion.div
-                        initial={{ opacity: 0, y: -20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -20 }}
-                        transition={{ duration: 0.3 }}
-                        className="fixed inset-x-0 top-20 z-40 bg-background/95 backdrop-blur-xl border-b border-border md:hidden"
-                    >
-                        <div className="px-6 py-8 space-y-6">
-                            {navLinks.map((link, index) => (
-                                <motion.a
-                                    key={link.name}
-                                    href={link.href}
-                                    initial={{ opacity: 0, x: -20 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                    transition={{ delay: index * 0.1 }}
-                                    onClick={() => setIsMobileMenuOpen(false)}
-                                    className="block text-lg font-medium text-foreground hover:text-primary transition-colors"
-                                >
-                                    {link.name}
-                                </motion.a>
-                            ))}
-                            <div className="flex flex-col gap-3 pt-4">
-                                <Link to="/login" className="px-6 py-2 text-center border border-border rounded-xl hover:bg-muted transition-colors" onClick={() => setIsMobileMenuOpen(false)}>
-                                    Sign In
-                                </Link>
-                                <Link to="/register" className="btn-primary text-center" onClick={() => setIsMobileMenuOpen(false)}>
-                                    Get Started
-                                </Link>
+                    <>
+                        {/* Backdrop Overlay */}
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            onClick={() => setIsMobileMenuOpen(false)}
+                            className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm md:hidden"
+                        />
+
+                        <motion.div
+                            initial={{ opacity: 0, y: -20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -20 }}
+                            transition={{ duration: 0.3 }}
+                            className="fixed inset-x-0 top-20 z-40 bg-background/95 backdrop-blur-xl border-b border-border md:hidden"
+                        >
+                            <div className="px-6 py-8 space-y-6">
+                                {navLinks.map((link, index) => (
+                                    <motion.a
+                                        key={link.name}
+                                        href={link.href}
+                                        initial={{ opacity: 0, x: -20 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        transition={{ delay: index * 0.1 }}
+                                        onClick={() => setIsMobileMenuOpen(false)}
+                                        className="block text-lg font-medium text-foreground hover:text-primary transition-colors"
+                                    >
+                                        {link.name}
+                                    </motion.a>
+                                ))}
+                                <div className="flex flex-col gap-3 pt-4">
+                                    <Link to="/login" className="px-6 py-2 text-center border border-border rounded-xl hover:bg-muted transition-colors" onClick={() => setIsMobileMenuOpen(false)}>
+                                        Sign In
+                                    </Link>
+                                    <Link to="/register" className="btn-primary text-center" onClick={() => setIsMobileMenuOpen(false)}>
+                                        Get Started
+                                    </Link>
+                                </div>
                             </div>
-                        </div>
-                    </motion.div>
+                        </motion.div>
+                    </>
                 )}
             </AnimatePresence>
         </>

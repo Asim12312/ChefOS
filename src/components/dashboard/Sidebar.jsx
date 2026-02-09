@@ -4,65 +4,128 @@ import {
     LayoutDashboard, Store, Table, Menu as MenuIcon, ShoppingCart,
     BarChart3, Star, LogOut, Bell, Calendar,
     MessageSquare, Settings, ChevronLeft, ChevronRight,
-    UtensilsCrossed
+    UtensilsCrossed, Sparkles, Pin, PinOff, Users, QrCode
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { cn } from '../../lib/utils';
 import { useState } from 'react';
+import Logo from '../common/Logo';
 
-const Sidebar = ({ className }) => {
-    const { logout } = useAuth();
+const Sidebar = ({ className, open, onClose }) => {
+    const { user, logout } = useAuth();
     const location = useLocation();
-    const [collapsed, setCollapsed] = useState(false);
+    const [isPinned, setIsPinned] = useState(() => {
+        return localStorage.getItem('sidebarPinned') === 'true';
+    });
+    const [collapsed, setCollapsed] = useState(!isPinned);
 
-    const menuItems = [
-        { label: 'Overview', icon: LayoutDashboard, link: '/dashboard' },
-        { label: 'Live Orders', icon: ShoppingCart, link: '/orders' },
-        { label: 'Menu Management', icon: MenuIcon, link: '/menu-management' },
-        { label: 'Table Management', icon: Table, link: '/tables' },
-        { label: 'Inventory', icon: Store, link: '/inventory' },
-        { label: 'Reservations', icon: Calendar, link: '/reservations' },
-        { label: 'Kitchen Display', icon: UtensilsCrossed, link: '/kds' },
-        { label: 'Analytics', icon: BarChart3, link: '/analytics' },
-        { label: 'Reviews', icon: Star, link: '/reviews' },
-        { label: 'Complaints', icon: MessageSquare, link: '/complaints' },
-        { label: 'Settings', icon: Settings, link: '/settings' },
+    const togglePin = () => {
+        const newState = !isPinned;
+        setIsPinned(newState);
+        localStorage.setItem('sidebarPinned', newState);
+        if (newState) setCollapsed(false);
+    };
+
+    const handleMouseEnter = () => {
+        if (window.innerWidth >= 1024 && !isPinned) {
+            setCollapsed(false);
+        }
+    };
+
+    const handleMouseLeave = () => {
+        if (window.innerWidth >= 1024 && !isPinned) {
+            setCollapsed(true);
+        }
+    };
+
+    const allMenuItems = [
+        { label: 'Overview', icon: LayoutDashboard, link: '/dashboard', permission: 'dashboard' },
+        { label: 'Live Orders', icon: ShoppingCart, link: '/orders', permission: 'orders' },
+        { label: 'Menu Management', icon: MenuIcon, link: '/menu-management', permission: 'menu' },
+        { label: 'Table Management', icon: Table, link: '/tables', permission: 'tables' },
+        { label: 'Inventory', icon: Store, link: '/inventory', permission: 'inventory' },
+        { label: 'QR Management', icon: QrCode, link: '/qr-codes', permission: 'qr-codes' },
+        { label: 'Analytics', icon: BarChart3, link: '/analytics', permission: 'analytics' },
+        { label: 'Staff Management', icon: Users, link: '/staff-management', permission: 'staff' },
+        { label: 'Reviews', icon: Star, link: '/admin/reviews', permission: 'reviews' },
+        { label: 'Complaints', icon: MessageSquare, link: '/admin/complaints', permission: 'complaints' },
+        { label: 'Settings', icon: Settings, link: '/settings', permission: 'settings' },
+        { label: 'Subscription', icon: Sparkles, link: '/subscription', permission: 'subscription' },
     ];
+
+    const menuItems = allMenuItems.filter(item => {
+        if (user?.role === 'OWNER' || user?.role === 'ADMIN') return true;
+        return user?.permissions?.includes(item.permission);
+    });
+
+    const variants = {
+        desktop: {
+            width: (collapsed && !isPinned) ? 80 : 280,
+            transition: {
+                type: "spring",
+                stiffness: 300,
+                damping: 30
+            }
+        },
+        mobileOpen: {
+            x: 0,
+            width: 280,
+            transition: {
+                type: "spring",
+                stiffness: 400,
+                damping: 40
+            }
+        },
+        mobileClosed: {
+            x: "-100%",
+            width: 280,
+            transition: {
+                type: "spring",
+                stiffness: 400,
+                damping: 40
+            }
+        }
+    };
 
     return (
         <motion.div
             initial={false}
-            animate={{ width: collapsed ? 80 : 280 }}
+            animate={window.innerWidth >= 1024 ? "desktop" : (open ? "mobileOpen" : "mobileClosed")}
+            variants={variants}
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
             className={cn(
-                "hidden lg:flex flex-col h-screen sticky top-0 border-r border-border/40 bg-background/80 backdrop-blur-xl z-50 transition-all duration-300 shadow-xl shadow-black/5",
+                "flex flex-col h-screen sticky top-0 border-r border-border/40 bg-background/80 backdrop-blur-xl z-50 shadow-xl shadow-black/5",
+                "fixed lg:sticky inset-y-0 left-0",
                 className
             )}
         >
             {/* Logo Section */}
-            <div className="h-20 flex items-center px-6 relative">
-                <Link to="/dashboard" className="flex items-center gap-3 overflow-hidden">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-orange-600 flex items-center justify-center shrink-0 shadow-lg shadow-primary/20">
-                        <span className="font-logo-stylish text-xl text-primary-foreground">T</span>
-                    </div>
-                    <AnimatePresence>
-                        {!collapsed && (
-                            <motion.span
-                                initial={{ opacity: 0, x: -10 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                exit={{ opacity: 0, x: -10 }}
-                                className="font-logo-stylish text-2xl bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent truncate"
-                            >
-                                Tablefy
-                            </motion.span>
-                        )}
-                    </AnimatePresence>
+            <div className="h-20 flex items-center px-6 relative justify-between">
+                <Link to={user?.role === 'OWNER' || user?.role === 'ADMIN' ? '/dashboard' : (user?.permissions?.includes('orders') ? '/orders' : '/dashboard')}>
+                    <Logo iconOnly={collapsed && !isPinned} className={(collapsed && !isPinned) ? "w-10 h-10" : "w-auto"} />
                 </Link>
 
+                {/* Sidebar Pin/Unpin Toggle (Desktop Only) */}
                 <button
-                    onClick={() => setCollapsed(!collapsed)}
-                    className="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-primary flex items-center justify-center text-primary-foreground shadow-lg hover:scale-110 transition-transform"
+                    onClick={togglePin}
+                    className={cn(
+                        "hidden lg:flex p-2 rounded-xl transition-all duration-300",
+                        isPinned
+                            ? "bg-primary/20 text-primary border border-primary/30"
+                            : "text-muted-foreground hover:bg-muted hover:text-foreground border border-transparent",
+                        (collapsed && !isPinned) && "opacity-0 group-hover:opacity-100 transition-opacity"
+                    )}
                 >
-                    {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+                    {isPinned ? <Pin size={18} fill="currentColor" /> : <Pin size={18} />}
+                </button>
+
+                {/* Mobile Close Button */}
+                <button
+                    onClick={onClose}
+                    className="lg:hidden p-2 hover:bg-muted rounded-xl transition-colors"
+                >
+                    <ChevronLeft size={20} />
                 </button>
             </div>
 
@@ -70,8 +133,10 @@ const Sidebar = ({ className }) => {
             <div className="flex-1 overflow-y-auto custom-scrollbar py-6 px-3 space-y-1">
                 {menuItems.map((item, index) => {
                     const isActive = location.pathname === item.link;
+                    const isCollapsedOnDesktop = collapsed && !isPinned && window.innerWidth >= 1024;
+
                     return (
-                        <Link to={item.link} key={index}>
+                        <Link to={item.link} key={index} onClick={() => window.innerWidth < 1024 && onClose?.()}>
                             <div
                                 className={cn(
                                     "relative flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-300 group overflow-hidden",
@@ -97,20 +162,20 @@ const Sidebar = ({ className }) => {
                                     )}
                                 />
 
-                                <AnimatePresence>
-                                    {!collapsed && (
+                                <AnimatePresence mode="wait">
+                                    {!isCollapsedOnDesktop && (
                                         <motion.span
                                             initial={{ opacity: 0, x: -10 }}
                                             animate={{ opacity: 1, x: 0 }}
                                             exit={{ opacity: 0, x: -10 }}
-                                            className="truncate"
+                                            className="truncate whitespace-nowrap"
                                         >
                                             {item.label}
                                         </motion.span>
                                     )}
                                 </AnimatePresence>
 
-                                {isActive && !collapsed && (
+                                {isActive && !isCollapsedOnDesktop && (
                                     <motion.div
                                         layoutId="activeIndicator"
                                         className="absolute right-3 w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_8px_rgba(250,144,0,0.8)]"
@@ -128,12 +193,12 @@ const Sidebar = ({ className }) => {
                     onClick={logout}
                     className={cn(
                         "flex items-center gap-3 w-full px-3 py-3 rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all group overflow-hidden",
-                        collapsed && "justify-center"
+                        (collapsed && !isPinned) && window.innerWidth >= 1024 && "justify-center"
                     )}
                 >
                     <LogOut size={20} className="shrink-0 transition-transform group-hover:rotate-12" />
-                    <AnimatePresence>
-                        {!collapsed && (
+                    <AnimatePresence mode="wait">
+                        {!((collapsed && !isPinned) && window.innerWidth >= 1024) && (
                             <motion.span
                                 initial={{ opacity: 0, width: 0 }}
                                 animate={{ opacity: 1, width: 'auto' }}

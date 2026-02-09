@@ -1,12 +1,12 @@
 import { motion } from "framer-motion";
 import { Star, Quote } from "lucide-react";
-import { AnimatedSection } from "../ui/animated-section";
+import { AnimatedSection, StaggerContainer, StaggerItem } from "../ui/animated-section";
 
 const testimonials = [
     {
         name: "Rajesh Kumar",
         role: "Owner, The Curry House (London)",
-        content: "Honestly, I was not sure at first but Tablefy made our weekends so much smoother. The digital menu just works and customers actually enjoy using it!",
+        content: "Honestly, I was not sure at first but ChefOS made our weekends so much smoother. The digital menu just works and customers actually enjoy using it!",
         rating: 5,
         image: "RK",
     },
@@ -48,8 +48,50 @@ export const TestimonialsSection = () => {
                     </p>
                 </AnimatedSection>
 
-                {/* Testimonials Grid */}
-                <div className="grid md:grid-cols-3 gap-8">
+                {/* Mobile/Tablet: Carousel */}
+                <div className="md:hidden relative -mx-4 sm:-mx-6">
+                    <div
+                        className="overflow-x-auto carousel-scrollbar snap-x snap-mandatory
+                                 flex gap-4 sm:gap-6 px-4 sm:px-6 pb-4
+                                 scroll-smooth touch-pan-x"
+                    >
+                        {testimonials.map((testimonial, index) => (
+                            <motion.div
+                                key={index}
+                                initial={{ opacity: 0, y: 20 }}
+                                whileInView={{ opacity: 1, y: 0 }}
+                                viewport={{ once: true }}
+                                transition={{ delay: index * 0.1 }}
+                                whileHover={{ y: -5 }}
+                                className="snap-center snap-always flex-none
+                                         w-[85vw] sm:w-[60vw]
+                                         min-w-0 glass-card p-6 sm:p-8 rounded-3xl flex flex-col h-full"
+                            >
+                                <Quote className="w-8 h-8 text-primary/20 mb-4" />
+                                <p className="text-foreground/80 leading-relaxed flex-1 mb-6 text-sm sm:text-base">
+                                    "{testimonial.content}"
+                                </p>
+                                <div className="flex gap-1 mb-4">
+                                    {Array.from({ length: testimonial.rating }).map((_, i) => (
+                                        <Star key={i} className="w-4 h-4 fill-primary text-primary" />
+                                    ))}
+                                </div>
+                                <div className="flex items-center gap-4">
+                                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center font-semibold text-primary text-sm">
+                                        {testimonial.image}
+                                    </div>
+                                    <div>
+                                        <p className="font-semibold text-sm">{testimonial.name}</p>
+                                        <p className="text-xs text-muted-foreground">{testimonial.role}</p>
+                                    </div>
+                                </div>
+                            </motion.div>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Desktop: Grid */}
+                <div className="hidden md:grid md:grid-cols-3 gap-8">
                     {testimonials.map((testimonial, index) => (
                         <AnimatedSection key={index} delay={index * 0.15}>
                             <motion.div

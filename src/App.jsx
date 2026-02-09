@@ -1,41 +1,62 @@
+import { Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
+import { OfflineSyncProvider } from './context/OfflineSyncContext';
 import ProtectedRoute from './components/ProtectedRoute';
-
-// Public Pages
-import Landing from './pages/Landing';
-
-// Auth Pages
-import Login from './pages/auth/Login';
-import Register from './pages/auth/Register';
-import ForgotPassword from './pages/auth/ForgotPassword';
-import ResetPassword from './pages/auth/ResetPassword';
-
-// Owner Pages
-import OwnerDashboard from './pages/owner/Dashboard';
-import {
-  RestaurantSettings,
-  TableManagement,
-  MenuManagement,
-  InventoryManagement,
-  OrderManagement,
-  Analytics,
-  Reviews,
-  ServiceRequests,
-  Reservations,
-  Complaints,
-  RestaurantOnboarding
-} from './pages/owner';
-
-// Customer Pages
-import { Menu, Cart, Checkout, OrderTracking, VoiceOrder, CustomerLayout } from './pages/customer';
-
-// KDS
-import { KitchenDisplay } from './pages/kds';
 import { useAuth } from './context/AuthContext';
+
+// --- Professional Page Loader ---
+const PageLoader = () => (
+  <div className="flex h-screen w-full items-center justify-center bg-background">
+    <div className="flex flex-col items-center gap-4">
+      <div className="h-12 w-12 animate-spin rounded-full border-4 border-primary border-t-transparent shadow-lg" />
+      <p className="animate-pulse text-sm font-medium text-muted-foreground tracking-widest uppercase">Initializing...</p>
+    </div>
+  </div>
+);
+
+// --- Public Pages (Lazy) ---
+const Landing = lazy(() => import('./pages/Landing'));
+const Terms = lazy(() => import('./pages/Terms'));
+const Privacy = lazy(() => import('./pages/Privacy'));
+
+// --- Auth Pages (Lazy) ---
+const Login = lazy(() => import('./pages/auth/Login'));
+const Register = lazy(() => import('./pages/auth/Register'));
+const ForgotPassword = lazy(() => import('./pages/auth/ForgotPassword'));
+const ResetPassword = lazy(() => import('./pages/auth/ResetPassword'));
+
+// --- Owner Pages (Lazy) ---
+const OwnerDashboard = lazy(() => import('./pages/owner/Dashboard'));
+const RestaurantSettings = lazy(() => import('./pages/owner').then(m => ({ default: m.RestaurantSettings })));
+const TableManagement = lazy(() => import('./pages/owner').then(m => ({ default: m.TableManagement })));
+const MenuManagement = lazy(() => import('./pages/owner').then(m => ({ default: m.MenuManagement })));
+const InventoryManagement = lazy(() => import('./pages/owner').then(m => ({ default: m.InventoryManagement })));
+const OrderManagement = lazy(() => import('./pages/owner').then(m => ({ default: m.OrderManagement })));
+const Analytics = lazy(() => import('./pages/owner').then(m => ({ default: m.Analytics })));
+const Reviews = lazy(() => import('./pages/owner').then(m => ({ default: m.Reviews })));
+const ServiceRequests = lazy(() => import('./pages/owner').then(m => ({ default: m.ServiceRequests })));
+const Complaints = lazy(() => import('./pages/owner').then(m => ({ default: m.Complaints })));
+const RestaurantOnboarding = lazy(() => import('./pages/owner').then(m => ({ default: m.RestaurantOnboarding })));
+const ChefAI = lazy(() => import('./pages/owner').then(m => ({ default: m.ChefAI })));
+const Subscription = lazy(() => import('./pages/owner').then(m => ({ default: m.Subscription })));
+const StaffManagement = lazy(() => import('./pages/owner').then(m => ({ default: m.StaffManagement })));
+const QRCodeManagement = lazy(() => import('./pages/owner/QRCodeManagement'));
+
+// --- Customer Pages (Lazy) ---
+const Menu = lazy(() => import('./pages/customer').then(m => ({ default: m.Menu })));
+const Cart = lazy(() => import('./pages/customer').then(m => ({ default: m.Cart })));
+const Checkout = lazy(() => import('./pages/customer').then(m => ({ default: m.Checkout })));
+const OrderTracking = lazy(() => import('./pages/customer').then(m => ({ default: m.OrderTracking })));
+const CustomerLayout = lazy(() => import('./pages/customer').then(m => ({ default: m.CustomerLayout })));
+const CustomerComplaints = lazy(() => import('./pages/customer').then(m => ({ default: m.CustomerComplaints })));
+const CustomerBill = lazy(() => import('./pages/customer').then(m => ({ default: m.CustomerBill })));
+const CustomerReviews = lazy(() => import('./pages/customer').then(m => ({ default: m.CustomerReviews })));
+const ReviewFeedback = lazy(() => import('./pages/customer').then(m => ({ default: m.ReviewFeedback })));
+const RateStaff = lazy(() => import('./pages/customer').then(m => ({ default: m.RateStaff })));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -60,188 +81,243 @@ const OwnerGuard = ({ children }) => {
   return children;
 };
 
+// --- Redirect Handler for Legacy/Direct Review Links ---
+const ReviewRedirect = () => {
+  const query = new URLSearchParams(window.location.search);
+  const restaurantId = query.get('restaurant');
+  if (restaurantId) {
+    return <Navigate to={`/menu/${restaurantId}/reviews`} replace />;
+  }
+  return <Navigate to="/" replace />;
+};
+
+const ComplaintRedirect = () => {
+  const query = new URLSearchParams(window.location.search);
+  const restaurantId = query.get('restaurant');
+  if (restaurantId) {
+    return <Navigate to={`/menu/${restaurantId}/complaints`} replace />;
+  }
+  return <Navigate to="/" replace />;
+};
+
+const FeedbackRedirect = () => {
+  const query = new URLSearchParams(window.location.search);
+  const restaurantId = query.get('restaurant');
+  if (restaurantId) {
+    return <Navigate to={`/menu/${restaurantId}/feedback`} replace />;
+  }
+  return <Navigate to="/" replace />;
+};
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <AuthProvider>
-          <CartProvider>
-            <Routes>
-              {/* Landing Page */}
-              <Route path="/" element={<Landing />} />
+          <OfflineSyncProvider>
+            <CartProvider>
+              <Suspense fallback={<PageLoader />}>
+                <Routes>
+                  {/* Landing Page */}
+                  <Route path="/" element={<Landing />} />
+                  <Route path="/terms" element={<Terms />} />
+                  <Route path="/privacy" element={<Privacy />} />
 
-              {/* Public Routes */}
-              <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
-              <Route path="/forgot-password" element={<ForgotPassword />} />
-              <Route path="/reset-password" element={<ResetPassword />} />
+                  {/* Redirect /menu to / since we need a restaurant ID */}
+                  <Route path="/menu" element={<Navigate to="/" replace />} />
+                  <Route path="/reviews" element={<ReviewRedirect />} />
+                  <Route path="/complaints" element={<ComplaintRedirect />} />
+                  <Route path="/feedback" element={<FeedbackRedirect />} />
 
-              {/* Customer Routes - Public */}
-              <Route element={<CustomerLayout />}>
-                <Route path="/menu/:restaurantId" element={<Menu />} />
-                <Route path="/menu/:restaurantId/:tableId" element={<Menu />} />
-                <Route path="/cart" element={<Cart />} />
-                <Route path="/checkout" element={<Checkout />} />
-                <Route path="/order/:orderId" element={<OrderTracking />} />
-                <Route path="/voice-order/:restaurantId" element={<VoiceOrder />} />
-              </Route>
+                  {/* Public Routes */}
+                  <Route path="/login" element={<Login />} />
+                  <Route path="/register" element={<Register />} />
+                  <Route path="/forgot-password" element={<ForgotPassword />} />
+                  <Route path="/reset-password" element={<ResetPassword />} />
 
-              {/* Owner Routes - Protected */}
-              <Route
-                path="/onboarding"
-                element={
-                  <ProtectedRoute roles={['OWNER']}>
-                    <RestaurantOnboarding />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/dashboard"
-                element={
-                  <ProtectedRoute roles={['OWNER', 'ADMIN']}>
-                    <OwnerGuard>
-                      <OwnerDashboard />
-                    </OwnerGuard>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/settings"
-                element={
-                  <ProtectedRoute roles={['OWNER', 'ADMIN']}>
-                    <OwnerGuard>
-                      <RestaurantSettings />
-                    </OwnerGuard>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/tables"
-                element={
-                  <ProtectedRoute roles={['OWNER', 'ADMIN']}>
-                    <OwnerGuard>
-                      <TableManagement />
-                    </OwnerGuard>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/menu-management"
-                element={
-                  <ProtectedRoute roles={['OWNER', 'ADMIN']}>
-                    <OwnerGuard>
-                      <MenuManagement />
-                    </OwnerGuard>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/inventory"
-                element={
-                  <ProtectedRoute roles={['OWNER', 'CHEF', 'ADMIN']}>
-                    <OwnerGuard>
-                      <InventoryManagement />
-                    </OwnerGuard>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/orders"
-                element={
-                  <ProtectedRoute roles={['OWNER', 'CHEF', 'ADMIN']}>
-                    <OwnerGuard>
-                      <OrderManagement />
-                    </OwnerGuard>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/analytics"
-                element={
-                  <ProtectedRoute roles={['OWNER', 'ADMIN']}>
-                    <OwnerGuard>
-                      <Analytics />
-                    </OwnerGuard>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/reviews"
-                element={
-                  <ProtectedRoute roles={['OWNER', 'ADMIN']}>
-                    <OwnerGuard>
-                      <Reviews />
-                    </OwnerGuard>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/service-requests"
-                element={
-                  <ProtectedRoute roles={['OWNER', 'ADMIN']}>
-                    <OwnerGuard>
-                      <ServiceRequests />
-                    </OwnerGuard>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/reservations"
-                element={
-                  <ProtectedRoute roles={['OWNER', 'ADMIN']}>
-                    <OwnerGuard>
-                      <Reservations />
-                    </OwnerGuard>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/complaints"
-                element={
-                  <ProtectedRoute roles={['OWNER', 'ADMIN']}>
-                    <OwnerGuard>
-                      <Complaints />
-                    </OwnerGuard>
-                  </ProtectedRoute>
-                }
-              />
+                  {/* Customer Routes - Public */}
+                  <Route path="/menu/:restaurantId" element={<CustomerLayout />}>
+                    <Route index element={<Menu />} />
+                    <Route path=":tableId" element={<Menu />} />
+                    <Route path="cart" element={<Cart />} />
+                    <Route path="checkout" element={<Checkout />} />
+                    <Route path="order-tracking" element={<OrderTracking />} />
+                    <Route path="order-tracking/:orderId" element={<OrderTracking />} />
+                    <Route path="bill" element={<CustomerBill />} />
+                    <Route path="bill/:orderId" element={<CustomerBill />} />
+                    <Route path="complaints" element={<CustomerComplaints />} />
+                    <Route path="reviews" element={<CustomerReviews />} />
+                    <Route path="feedback" element={<ReviewFeedback />} />
+                    <Route path="rate-staff" element={<RateStaff />} />
+                  </Route>
 
-              {/* KDS Route - Protected */}
-              <Route
-                path="/kds"
-                element={
-                  <ProtectedRoute roles={['CHEF', 'OWNER', 'ADMIN']}>
-                    <KitchenDisplay />
-                  </ProtectedRoute>
-                }
-              />
+                  {/* Owner Routes - Protected */}
+                  <Route
+                    path="/onboarding"
+                    element={
+                      <ProtectedRoute roles={['OWNER']}>
+                        <RestaurantOnboarding />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/dashboard"
+                    element={
+                      <ProtectedRoute permission="dashboard">
+                        <OwnerGuard>
+                          <OwnerDashboard />
+                        </OwnerGuard>
+                      </ProtectedRoute>
+                    }
+                  />
 
+                  <Route
+                    path="/settings"
+                    element={
+                      <ProtectedRoute permission="settings">
+                        <OwnerGuard>
+                          <RestaurantSettings />
+                        </OwnerGuard>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/tables"
+                    element={
+                      <ProtectedRoute permission="tables">
+                        <OwnerGuard>
+                          <TableManagement />
+                        </OwnerGuard>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/menu-management"
+                    element={
+                      <ProtectedRoute permission="menu">
+                        <OwnerGuard>
+                          <MenuManagement />
+                        </OwnerGuard>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/inventory"
+                    element={
+                      <ProtectedRoute permission="inventory">
+                        <OwnerGuard>
+                          <InventoryManagement />
+                        </OwnerGuard>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/orders"
+                    element={
+                      <ProtectedRoute permission="orders">
+                        <OwnerGuard>
+                          <OrderManagement />
+                        </OwnerGuard>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/analytics"
+                    element={
+                      <ProtectedRoute permission="analytics">
+                        <OwnerGuard>
+                          <Analytics />
+                        </OwnerGuard>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/staff-management"
+                    element={
+                      <ProtectedRoute permission="staff">
+                        <OwnerGuard>
+                          <StaffManagement />
+                        </OwnerGuard>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/qr-codes"
+                    element={
+                      <ProtectedRoute permission="tables">
+                        <OwnerGuard>
+                          <QRCodeManagement />
+                        </OwnerGuard>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/admin/reviews"
+                    element={
+                      <ProtectedRoute permission="reviews">
+                        <OwnerGuard>
+                          <Reviews />
+                        </OwnerGuard>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/service-requests"
+                    element={
+                      <ProtectedRoute permission="service">
+                        <OwnerGuard>
+                          <ServiceRequests />
+                        </OwnerGuard>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/admin/complaints"
+                    element={
+                      <ProtectedRoute permission="complaints">
+                        <OwnerGuard>
+                          <Complaints />
+                        </OwnerGuard>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/subscription"
+                    element={
+                      <ProtectedRoute roles={['OWNER', 'ADMIN']}>
+                        <OwnerGuard>
+                          <Subscription />
+                        </OwnerGuard>
+                      </ProtectedRoute>
+                    }
+                  />
+                </Routes>
+              </Suspense>
 
-            </Routes>
-
-            <Toaster
-              position="top-right"
-              toastOptions={{
-                duration: 3000,
-                style: {
-                  background: '#363636',
-                  color: '#fff',
-                },
-                success: {
-                  iconTheme: {
-                    primary: '#4ade80',
-                    secondary: '#fff',
+              <Toaster
+                position="top-right"
+                toastOptions={{
+                  duration: 3000,
+                  style: {
+                    background: '#363636',
+                    color: '#fff',
                   },
-                },
-                error: {
-                  iconTheme: {
-                    primary: '#ef4444',
-                    secondary: '#fff',
+                  success: {
+                    iconTheme: {
+                      primary: '#4ade80',
+                      secondary: '#fff',
+                    },
                   },
-                },
-              }}
-            />
-          </CartProvider>
+                  error: {
+                    iconTheme: {
+                      primary: '#ef4444',
+                      secondary: '#fff',
+                    },
+                  },
+                }}
+              />
+            </CartProvider>
+          </OfflineSyncProvider>
         </AuthProvider>
       </Router>
     </QueryClientProvider>

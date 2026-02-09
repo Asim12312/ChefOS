@@ -1,55 +1,149 @@
-import { motion } from "framer-motion";
-import { Check, Sparkles } from "lucide-react";
-import { AnimatedSection, StaggerContainer, StaggerItem } from "@/components/ui/animated-section";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
+import { Check, Globe, Sparkles, ArrowRight, Zap, Star, ShieldCheck, Heart } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
+import { usePaddle } from "@/hooks/usePaddle";
+import AnimatedSection, { StaggerContainer, StaggerItem } from "../ui/animated-section";
 
-const plans = [
-    {
-        name: "Starter",
-        price: "49",
-        description: "Perfect for small cafes and food trucks",
-        features: [
-            "Up to 5 tables",
-            "Basic menu management",
-            "QR code generation",
-            "Order notifications",
-            "Email support",
-        ],
-        highlighted: false,
-    },
-    {
-        name: "Professional",
-        price: "99",
-        description: "Ideal for growing restaurants",
-        features: [
-            "Up to 25 tables",
-            "Advanced menu with photos",
-            "AI chatbot assistant",
-            "Real-time analytics",
-            "Staff management",
-            "Table reservations",
-            "Priority support",
-        ],
-        highlighted: true,
-    },
-    {
-        name: "Enterprise",
-        price: "249",
-        description: "For restaurant chains and large venues",
-        features: [
-            "Unlimited tables",
-            "Multi-location support",
-            "Custom branding",
-            "API access",
-            "Advanced reporting",
-            "Dedicated account manager",
-            "24/7 phone support",
-            "Custom integrations",
-        ],
-        highlighted: false,
-    },
-];
+const BASE_PRICE = 25;
+const PADDLE_PRICE_ID = import.meta.env.VITE_PADDLE_PREMIUM_PRICE_ID;
+
+const CURRENCY_MAP = {
+    USD: { symbol: "$", rate: 1, name: "United States" },
+    GBP: { symbol: "£", rate: 0.8, name: "United Kingdom" },
+    EUR: { symbol: "€", rate: 0.92, name: "Europe" },
+    INR: { symbol: "₹", rate: 83, name: "India" },
+    PKR: { symbol: "Rs. ", rate: 280, name: "Pakistan" },
+    CAD: { symbol: "C$", rate: 1.35, name: "Canada" },
+    AUD: { symbol: "A$", rate: 1.5, name: "Australia" },
+};
+
+const getPlanFeatures = (isPremium) => {
+    if (!isPremium) {
+        return [
+            "Digital Menu (Unlimited items)",
+            "Up to 5 Smart QR Tables",
+            "Real-time QR Scanning",
+            "Basic Restaurant Dashboard",
+            "Single User Access",
+            "Standard Support",
+        ];
+    }
+    return [
+        "Unlimited Tables & Menus",
+        "Live Ordering System (Real-time)",
+        "Chef AI Assistant (Gemini)",
+        "Inventory & Stock Engine",
+        "Service Request Hub",
+        "Advanced Sales Analytics",
+        "Stripe Payment Integration",
+        "Staff Roles (Chef/Admin)",
+        "24/7 Priority Support",
+    ];
+};
 
 export const PricingSection = () => {
+    const navigate = useNavigate();
+    const { user } = useAuth();
+    const { openCheckout } = usePaddle();
+    const [currency, setCurrency] = useState({ code: "USD", symbol: "$", rate: 1, name: "Global" });
+    const [isDetecting, setIsDetecting] = useState(true);
+
+    useEffect(() => {
+        const detectCurrency = async () => {
+            setIsDetecting(true);
+
+            // Priority 1: GeoJS (CORS friendly, HTTPS free)
+            try {
+                const response = await fetch('https://get.geojs.io/v1/ip/geo.json');
+                const data = await response.json();
+
+                if (data.country_code) {
+                    const countryCode = data.country_code;
+                    // Map common currencies
+                    const currencyCode = countryCode === 'PK' ? 'PKR' :
+                        countryCode === 'GB' ? 'GBP' :
+                            countryCode === 'CA' ? 'CAD' :
+                                countryCode === 'IN' ? 'INR' :
+                                    countryCode === 'AU' ? 'AUD' : 'USD';
+
+                    if (CURRENCY_MAP[currencyCode]) {
+                        setCurrency({
+                            code: currencyCode,
+                            ...CURRENCY_MAP[currencyCode],
+                            name: data.country || "Global"
+                        });
+                        setIsDetecting(false);
+                        return;
+                    }
+                }
+            } catch (error) {
+                // Silent fail to avoid console noise
+            }
+
+            // Fallback: Browser Locale
+            const locale = navigator.language || "en-US";
+            const region = locale.split("-")[1] || "US";
+            const code = region === "PK" ? "PKR" : region === "GB" ? "GBP" : region === "IN" ? "INR" : "USD";
+
+            setCurrency({
+                code,
+                ...CURRENCY_MAP[code],
+                name: region === "PK" ? "Pakistan" : region === "GB" ? "United Kingdom" : "Global"
+            });
+            setIsDetecting(false);
+        };
+
+        detectCurrency();
+    }, []);
+
+    const handlePlanClick = (plan) => {
+        if (!user) {
+            navigate("/login");
+            return;
+        }
+
+        if (plan.name === "Premium") {
+            // If Paddle is not configured, send them to the internal subscription page
+            // which has the "Contact Support/Paddle Review" notice.
+            if (!PADDLE_PRICE_ID || !PADDLE_TOKEN) {
+                navigate("/subscription");
+                return;
+            }
+
+            openCheckout(PADDLE_PRICE_ID, {
+                restaurantId: user.restaurant?._id || user.restaurant || "",
+                email: user.email
+            });
+        } else {
+            navigate("/dashboard");
+        }
+    };
+
+    const formatPrice = (price) => {
+        if (price === "0") return "0";
+        const converted = (parseFloat(price) * currency.rate).toFixed(0);
+        return converted;
+    };
+
+    const plans = [
+        {
+            name: "Free",
+            price: "0",
+            description: "Perfect for small cafes starting with digital menus",
+            features: getPlanFeatures(false),
+            highlighted: false,
+        },
+        {
+            name: "Premium",
+            price: BASE_PRICE.toString(),
+            description: "The full Kitchen Operating System",
+            features: getPlanFeatures(true),
+            highlighted: true,
+        },
+    ];
+
     return (
         <section id="pricing" className="section-padding relative overflow-hidden">
             {/* Background */}
@@ -57,21 +151,99 @@ export const PricingSection = () => {
 
             <div className="relative z-10 max-w-7xl mx-auto">
                 {/* Section Header */}
-                <AnimatedSection className="text-center mb-16">
-                    <span className="inline-block text-primary font-medium text-sm uppercase tracking-wider mb-4">
-                        Pricing
-                    </span>
-                    <h2 className="font-display text-3xl md:text-5xl font-bold mb-6">
+                <AnimatedSection className="text-center mb-12 sm:mb-16">
+                    <div className="flex items-center justify-center gap-2 text-primary font-medium text-sm uppercase tracking-wider mb-3 sm:mb-4">
+                        <Globe className="w-4 h-4" />
+                        <span>Available in {currency.name} ({currency.code})</span>
+                    </div>
+                    <h2 className="font-display text-3xl md:text-5xl font-bold mb-4 sm:mb-6 leading-tight">
                         Simple, Transparent{" "}
                         <span className="text-gradient">Pricing</span>
                     </h2>
-                    <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
+                    <p className="text-muted-foreground text-base sm:text-lg max-w-2xl mx-auto leading-relaxed">
                         Choose the plan that fits your restaurant. All plans include a 14-day free trial.
                     </p>
                 </AnimatedSection>
 
-                {/* Pricing Cards */}
-                <StaggerContainer className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+                {/* Mobile/Tablet: Carousel | Desktop: Grid */}
+                <div className="md:hidden relative max-w-6xl mx-auto -mx-4 sm:-mx-6">
+                    <div
+                        className="overflow-x-auto carousel-scrollbar snap-x snap-mandatory
+                                 flex gap-6 sm:gap-8 px-4 sm:px-6 pb-4
+                                 scroll-smooth touch-pan-x"
+                    >
+                        {plans.map((plan, index) => (
+                            <motion.div
+                                key={index}
+                                initial={{ opacity: 0, y: 20 }}
+                                whileInView={{ opacity: 1, y: 0 }}
+                                viewport={{ once: true }}
+                                transition={{ delay: index * 0.15 }}
+                                whileHover={{ y: -8 }}
+                                className={`snap-center snap-always flex-none
+                                          w-[90vw] sm:w-[70vw]
+                                          min-w-0 relative rounded-3xl p-6 sm:p-8 transition-all duration-300 ${plan.highlighted
+                                        ? "bg-foreground text-background shadow-2xl"
+                                        : "glass-card"
+                                    }`}
+                            >
+                                {plan.highlighted && (
+                                    <div className="absolute -top-4 left-1/2 -translate-x-1/2">
+                                        <div className="flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-primary text-primary-foreground text-sm font-medium">
+                                            <Sparkles className="w-4 h-4" />
+                                            Most Popular
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div className="mb-6 sm:mb-8">
+                                    <h3 className="font-display text-xl sm:text-2xl font-semibold mb-2 leading-tight">{plan.name}</h3>
+                                    <p className={`text-sm leading-relaxed ${plan.highlighted ? "text-background/60" : "text-muted-foreground"}`}>
+                                        {plan.description}
+                                    </p>
+                                </div>
+
+                                <div className="mb-6 sm:mb-8">
+                                    <div className="flex items-baseline gap-1">
+                                        <span className="text-4xl md:text-5xl font-bold">{currency.symbol}{formatPrice(plan.price)}</span>
+                                        <span className={`${plan.highlighted ? "text-background/60" : "text-muted-foreground"}`}>
+                                            /month
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <ul className="space-y-3 sm:space-y-4 mb-6 sm:mb-8">
+                                    {plan.features.map((feature, i) => (
+                                        <li key={i} className="flex items-start gap-3">
+                                            <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 ${plan.highlighted ? "bg-primary" : "bg-primary/10"
+                                                }`}>
+                                                <Check className={`w-3 h-3 ${plan.highlighted ? "text-primary-foreground" : "text-primary"}`} />
+                                            </div>
+                                            <span className={`text-sm leading-relaxed ${plan.highlighted ? "text-background/80" : "text-muted-foreground"}`}>
+                                                {feature}
+                                            </span>
+                                        </li>
+                                    ))}
+                                </ul>
+
+                                <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                                    <button
+                                        onClick={() => handlePlanClick(plan)}
+                                        className={`w-full h-11 sm:h-12 rounded-xl font-medium transition-all ${plan.highlighted
+                                            ? "btn-primary"
+                                            : "bg-secondary hover:bg-secondary/80 text-secondary-foreground"
+                                            }`}
+                                    >
+                                        Get Started
+                                    </button>
+                                </motion.div>
+                            </motion.div>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Desktop: Grid */}
+                <StaggerContainer className="hidden md:grid grid-cols-2 gap-8 max-w-4xl mx-auto">
                     {plans.map((plan, index) => (
                         <StaggerItem key={index}>
                             <motion.div
@@ -91,15 +263,15 @@ export const PricingSection = () => {
                                 )}
 
                                 <div className="mb-8">
-                                    <h3 className="font-display text-2xl font-semibold mb-2">{plan.name}</h3>
-                                    <p className={`text-sm ${plan.highlighted ? "text-background/60" : "text-muted-foreground"}`}>
+                                    <h3 className="font-display text-2xl font-semibold mb-2 leading-tight">{plan.name}</h3>
+                                    <p className={`text-sm leading-relaxed ${plan.highlighted ? "text-background/60" : "text-muted-foreground"}`}>
                                         {plan.description}
                                     </p>
                                 </div>
 
                                 <div className="mb-8">
                                     <div className="flex items-baseline gap-1">
-                                        <span className="text-4xl md:text-5xl font-bold">£{plan.price}</span>
+                                        <span className="text-4xl md:text-5xl font-bold">{currency.symbol}{formatPrice(plan.price)}</span>
                                         <span className={`${plan.highlighted ? "text-background/60" : "text-muted-foreground"}`}>
                                             /month
                                         </span>
@@ -113,7 +285,7 @@ export const PricingSection = () => {
                                                 }`}>
                                                 <Check className={`w-3 h-3 ${plan.highlighted ? "text-primary-foreground" : "text-primary"}`} />
                                             </div>
-                                            <span className={`text-sm ${plan.highlighted ? "text-background/80" : "text-muted-foreground"}`}>
+                                            <span className={`text-sm leading-relaxed ${plan.highlighted ? "text-background/80" : "text-muted-foreground"}`}>
                                                 {feature}
                                             </span>
                                         </li>
@@ -122,6 +294,7 @@ export const PricingSection = () => {
 
                                 <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
                                     <button
+                                        onClick={() => handlePlanClick(plan)}
                                         className={`w-full h-12 rounded-xl font-medium transition-all ${plan.highlighted
                                             ? "btn-primary"
                                             : "bg-secondary hover:bg-secondary/80 text-secondary-foreground"
@@ -136,8 +309,8 @@ export const PricingSection = () => {
                 </StaggerContainer>
 
                 {/* FAQ Link */}
-                <AnimatedSection delay={0.4} className="text-center mt-12">
-                    <p className="text-muted-foreground">
+                <AnimatedSection delay={0.4} className="text-center mt-10 sm:mt-12">
+                    <p className="text-muted-foreground text-sm sm:text-base leading-relaxed">
                         Have questions?{" "}
                         <a href="#contact" className="text-primary hover:underline font-medium">
                             Contact our sales team
@@ -145,6 +318,8 @@ export const PricingSection = () => {
                     </p>
                 </AnimatedSection>
             </div>
+
+
         </section>
     );
 };

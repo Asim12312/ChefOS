@@ -2,6 +2,7 @@ import { motion } from "framer-motion";
 import { QrCode, Mail, Phone, MapPin, Twitter, Instagram, Linkedin, Facebook } from "lucide-react";
 import { AnimatedSection } from "@/components/ui/animated-section";
 import { Link } from "react-router-dom";
+import Logo from "../common/Logo";
 
 const footerLinks = {
     product: [
@@ -36,7 +37,7 @@ const socialLinks = [
     { icon: Facebook, href: "#" },
 ];
 
-export const Footer = () => {
+export const Footer = ({ onOpenContactModal }) => {
     return (
         <footer id="contact" className="bg-foreground text-background relative overflow-hidden">
             {/* CTA Section */}
@@ -50,19 +51,20 @@ export const Footer = () => {
                             Transform your restaurant experience today. Start your free 14-day trial
                             with no credit card required.
                         </p>
-                        <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                        <div className="flex flex-row flex-wrap gap-3 sm:gap-4 justify-center">
                             <motion.div
                                 whileHover={{ scale: 1.02 }}
                                 whileTap={{ scale: 0.98 }}
                             >
-                                <Link to="/register" className="btn-primary text-lg px-10 py-4 inline-block">
+                                <Link to="/register" className="btn-primary text-sm sm:text-base h-11 sm:h-12 px-6 sm:px-8 inline-flex items-center justify-center whitespace-nowrap">
                                     Start Free Trial
                                 </Link>
                             </motion.div>
                             <motion.button
                                 whileHover={{ scale: 1.02 }}
                                 whileTap={{ scale: 0.98 }}
-                                className="px-10 py-4 rounded-xl border border-background/20 text-lg hover:bg-background/5 transition-colors"
+                                onClick={onOpenContactModal}
+                                className="h-11 sm:h-12 px-6 sm:px-8 rounded-xl border border-background/20 text-sm sm:text-base hover:bg-background/5 transition-colors inline-flex items-center justify-center whitespace-nowrap"
                             >
                                 Contact Sales
                             </motion.button>
@@ -76,31 +78,16 @@ export const Footer = () => {
                 <div className="grid grid-cols-2 md:grid-cols-6 gap-8 mb-12">
                     {/* Brand */}
                     <div className="col-span-2">
-                        <motion.a
-                            href="#"
-                            className="flex items-center gap-2 mb-6"
-                            whileHover={{ scale: 1.02 }}
-                        >
-                            <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
-                                <QrCode className="w-5 h-5 text-primary-foreground" />
-                            </div>
-                            <span className="font-logo-stylish text-2xl tracking-wide text-background">Tablefy</span>
-                        </motion.a>
+                        <Link to="/" className="mb-6 block group">
+                            <Logo className="w-auto h-12" />
+                        </Link>
                         <p className="text-background/60 mb-6 max-w-xs">
                             Transforming the way restaurants serve and engage with their customers.
                         </p>
                         <div className="space-y-3 text-sm text-background/60">
                             <div className="flex items-center gap-2">
                                 <Mail className="w-4 h-4" />
-                                <span>support@tablefy.com</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <Phone className="w-4 h-4" />
-                                <span>+44 20 7946 0123</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <MapPin className="w-4 h-4" />
-                                <span>London, United Kingdom</span>
+                                <span>chefosteam@gmail.com</span>
                             </div>
                         </div>
                     </div>
@@ -128,7 +115,7 @@ export const Footer = () => {
                 {/* Bottom */}
                 <div className="flex flex-col md:flex-row items-center justify-between pt-8 border-t border-background/10">
                     <p className="text-background/40 text-sm mb-4 md:mb-0">
-                        © {new Date().getFullYear()} Tablefy. All rights reserved.
+                        © {new Date().getFullYear()} ChefOS. All rights reserved.
                     </p>
                     <div className="flex items-center gap-4">
                         {socialLinks.map((social, index) => (

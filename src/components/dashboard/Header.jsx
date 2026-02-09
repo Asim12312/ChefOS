@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Bell, Search, Menu, Moon, Sun, Laptop } from 'lucide-react';
+import { Bell, Search, Menu, Moon, Sun, Laptop, Sparkles } from 'lucide-react';
 import api from '../../config/api';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -11,6 +11,23 @@ const Header = ({ onMobileMenuClick }) => {
     const [searchFocused, setSearchFocused] = useState(false);
     const [notifications, setNotifications] = useState([]);
     const [showNotifications, setShowNotifications] = useState(false);
+    const [lastReadTime, setLastReadTime] = useState(() => {
+        return parseInt(localStorage.getItem('chefos_notifications_last_read') || '0');
+    });
+
+    const handleMarkAllRead = () => {
+        const now = Date.now();
+        setLastReadTime(now);
+        localStorage.setItem('chefos_notifications_last_read', now.toString());
+    };
+
+    const processedNotifications = notifications.map(n => ({
+        ...n,
+        unread: new Date(n.time).getTime() > lastReadTime
+    }));
+
+    const hasUnread = processedNotifications.some(n => n.unread);
+
     const [showThemeMenu, setShowThemeMenu] = useState(false);
 
     // Fetch Notifications
@@ -122,7 +139,7 @@ const Header = ({ onMobileMenuClick }) => {
                         className="p-2 text-muted-foreground hover:text-foreground transition-colors relative rounded-full hover:bg-muted/50"
                     >
                         <Bell size={20} />
-                        {notifications.some(n => n.unread) && (
+                        {hasUnread && (
                             <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.6)]"></span>
                         )}
                     </button>
@@ -137,11 +154,16 @@ const Header = ({ onMobileMenuClick }) => {
                             >
                                 <div className="p-4 border-b border-border flex justify-between items-center">
                                     <h4 className="font-semibold text-foreground">Notifications</h4>
-                                    <button className="text-xs text-primary hover:underline">Mark all read</button>
+                                    <button
+                                        onClick={handleMarkAllRead}
+                                        className="text-xs text-primary hover:underline"
+                                    >
+                                        Mark all read
+                                    </button>
                                 </div>
                                 <div className="max-h-64 overflow-y-auto custom-scrollbar">
-                                    {notifications.length > 0 ? (
-                                        notifications.map(n => (
+                                    {processedNotifications.length > 0 ? (
+                                        processedNotifications.map(n => (
                                             <div key={n.id} className={`p-4 hover:bg-muted/50 transition-colors border-b border-border last:border-0 ${n.unread ? 'bg-primary/5' : ''}`}>
                                                 <div className="flex justify-between items-start mb-1">
                                                     <span className="font-medium text-sm text-foreground">{n.title}</span>
@@ -166,7 +188,14 @@ const Header = ({ onMobileMenuClick }) => {
                 {/* Profile */}
                 <div className="flex items-center gap-3 cursor-pointer group">
                     <div className="text-right hidden md:block">
-                        <div className="text-sm font-bold text-foreground group-hover:text-primary transition-colors">{user?.name}</div>
+                        <div className="flex items-center gap-2 justify-end">
+                            {user?.restaurant?.subscription?.plan === 'PREMIUM' && (
+                                <span className="text-[10px] bg-primary/10 text-primary border border-primary/20 px-1.5 py-0.5 rounded flex items-center gap-1 font-bold">
+                                    <Sparkles size={8} /> PREMIUM
+                                </span>
+                            )}
+                            <div className="text-sm font-bold text-foreground group-hover:text-primary transition-colors">{user?.name}</div>
+                        </div>
                         <div className="text-xs text-muted-foreground uppercase tracking-wider font-medium">{user?.role}</div>
                     </div>
                     <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-orange-600 p-[2px] shadow-lg shadow-primary/20 group-hover:shadow-primary/40 transition-shadow">

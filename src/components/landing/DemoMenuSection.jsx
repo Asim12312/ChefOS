@@ -105,22 +105,14 @@ const menuItems = [
 ];
 
 export const DemoMenuSection = () => {
-    const [startIndex, setStartIndex] = useState(0);
+    const [activeIndex, setActiveIndex] = useState(0);
     const [activeCategory, setActiveCategory] = useState("starters");
     const [cart, setCart] = useState([
-        { id: 1, name: "Truffle Bruschetta", price: 14, quantity: 2 },
-        { id: 3, name: "Grilled Ribeye", price: 42, quantity: 1 }
+        { id: 1, name: "Paneer Tikka", price: 12.99, quantity: 2 },
+        { id: 3, name: "Chicken Biryani", price: 18.99, quantity: 1 }
     ]);
-    const [orderStatus, setOrderStatus] = useState("browsing"); // browsing, sent, preparing, ready
+    const [orderStatus, setOrderStatus] = useState("browsing");
     const [paymentMethod, setPaymentMethod] = useState(null);
-
-    const nextScreen = () => {
-        setStartIndex((prev) => (prev + 1) % demoScreens.length);
-    };
-
-    const prevScreen = () => {
-        setStartIndex((prev) => (prev - 1 + demoScreens.length) % demoScreens.length);
-    };
 
     const handleAddToCart = (item) => {
         setCart(prev => {
@@ -135,187 +127,202 @@ export const DemoMenuSection = () => {
     const handleRemoveFromCart = (id) => {
         setCart(prev => {
             const item = prev.find(i => i.id === id);
-            if (item.quantity > 1) {
+            if (item && item.quantity > 1) {
                 return prev.map(i => i.id === id ? { ...i, quantity: i.quantity - 1 } : i);
             }
             return prev.filter(i => i.id !== id);
         });
     };
 
-    const handleSendOrder = () => {
-        setOrderStatus("sent");
-        // Navigate to tracking screen (index 2)
-        const trackingIndex = 2;
-        const centerIndex = (startIndex + 1) % demoScreens.length;
-        const offset = (trackingIndex - centerIndex + demoScreens.length) % demoScreens.length;
-
-        if (offset === 0) return;
-
-        if (offset <= demoScreens.length / 2) {
-            for (let i = 0; i < offset; i++) nextScreen();
-        } else {
-            for (let i = 0; i < demoScreens.length - offset; i++) prevScreen();
-        }
-    };
+    const handleSendOrder = () => setOrderStatus("sent");
 
     const totalPrice = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
     const filteredItems = menuItems.filter((item) => item.category === activeCategory);
+    const activeScreen = demoScreens[activeIndex];
 
-    // Get 3 consecutive screens in a loop
-    const getVisibleScreens = () => {
-        return [0, 1, 2].map(offset => {
-            const index = (startIndex + offset) % demoScreens.length;
-            return { ...demoScreens[index], index, isCenter: offset === 1 };
-        });
-    };
-
-    const visibleScreens = getVisibleScreens();
+    const nextScreen = () => setActiveIndex((prev) => (prev + 1) % demoScreens.length);
+    const prevScreen = () => setActiveIndex((prev) => (prev - 1 + demoScreens.length) % demoScreens.length);
 
     return (
         <section className="section-padding bg-muted/20 relative overflow-hidden">
-            <div className="relative z-10 max-w-7xl mx-auto">
+            <div className="relative z-10 max-w-7xl mx-auto px-4">
                 {/* Section Header */}
-                <AnimatedSection className="text-center mb-12 relative">
+                <AnimatedSection className="text-center mb-12 sm:mb-20">
                     <h2 className="font-display text-3xl md:text-5xl font-bold mb-6">
                         Experience the{" "}
                         <span className="text-gradient">Customer View</span>
                     </h2>
-                    <p className="text-muted-foreground text-lg max-w-2xl mx-auto mb-8">
+                    <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
                         See how your customers will interact with your digital menu.
-                        Navigate through different features using the arrows.
+                        A seamless journey from browsing to payment.
                     </p>
                 </AnimatedSection>
 
-                {/* Carousel Container */}
-                <div className="flex items-center justify-center gap-4 px-4">
-                    {/* Previous Button */}
-                    <motion.button
-                        whileHover={{ scale: 1.1 }}
-                        whileTap={{ scale: 0.9 }}
-                        onClick={prevScreen}
-                        className="w-12 h-12 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-lg hover:shadow-xl transition-shadow flex-shrink-0 z-30"
-                    >
-                        <ChevronLeft className="w-6 h-6" />
-                    </motion.button>
-
-                    {/* Phone Mockups Container */}
-                    <div className="flex gap-4 items-center justify-center overflow-visible">
-                        {visibleScreens.map((screen) => (
-                            <motion.div
-                                key={screen.index}
-                                animate={{
-                                    opacity: screen.isCenter ? 1 : 0.5,
-                                    scale: screen.isCenter ? 1 : 0.9
-                                }}
-                                transition={{ duration: 0.4, ease: "easeInOut" }}
-                                className="relative flex-shrink-0"
-                                style={{ zIndex: screen.isCenter ? 20 : 10 }}
+                {/* Desktop View (LG+) */}
+                <div className="hidden lg:grid grid-cols-12 gap-12 items-center">
+                    {/* Left: Sidebar Navigation */}
+                    <div className="col-span-5 space-y-4">
+                        {demoScreens.map((screen, index) => (
+                            <motion.button
+                                key={screen.id}
+                                onClick={() => setActiveIndex(index)}
+                                className={`w-full text-left p-6 rounded-2xl border transition-all duration-300 relative overflow-hidden group ${activeIndex === index
+                                        ? "bg-background border-primary shadow-xl"
+                                        : "bg-transparent border-border/50 hover:border-primary/30"
+                                    }`}
+                                whileHover={{ x: 10 }}
                             >
-                                {/* Phone Frame */}
-                                <div className="bg-foreground rounded-[2.5rem] p-2.5 shadow-2xl w-[320px]">
-                                    <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1/3 h-6 bg-foreground rounded-b-2xl z-10" />
-                                    <div className="bg-background rounded-[2rem] overflow-hidden relative">
-                                        {/* Phone Screen */}
-                                        <div className="h-[500px] overflow-hidden relative">
-                                            {/* Screen Content Based on ID */}
-                                            {screen.id === "menu" && (
-                                                <MenuBrowseScreen
-                                                    activeCategory={activeCategory}
-                                                    setActiveCategory={setActiveCategory}
-                                                    filteredItems={filteredItems}
-                                                    menuCategories={menuCategories}
-                                                    onAdd={handleAddToCart}
-                                                />
-                                            )}
-                                            {screen.id === "cart" && (
-                                                <CartScreen
-                                                    cart={cart}
-                                                    totalPrice={totalPrice}
-                                                    onRemove={handleRemoveFromCart}
-                                                    onAdd={handleAddToCart}
-                                                    onSend={handleSendOrder}
-                                                />
-                                            )}
-                                            {screen.id === "tracking" && (
-                                                <OrderTrackingScreen status={orderStatus} />
-                                            )}
-                                            {screen.id === "payment" && (
-                                                <PaymentScreen
-                                                    totalPrice={totalPrice}
-                                                    paymentMethod={paymentMethod}
-                                                    setPaymentMethod={setPaymentMethod}
-                                                />
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Screen Label - Only show on center screen */}
-                                {screen.isCenter && (
+                                {activeIndex === index && (
                                     <motion.div
-                                        initial={{ opacity: 0, y: 10 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        className="absolute -bottom-10 left-1/2 -translate-x-1/2 whitespace-nowrap"
-                                    >
-                                        <span className="text-sm font-semibold text-primary">
-                                            {screen.title}
-                                        </span>
-                                    </motion.div>
+                                        layoutId="active-indicator"
+                                        className="absolute left-0 top-0 bottom-0 w-1.5 bg-primary"
+                                    />
                                 )}
-                            </motion.div>
+                                <h3 className={`font-display text-xl font-bold mb-2 transition-colors ${activeIndex === index ? "text-primary" : "text-foreground"
+                                    }`}>
+                                    {screen.title}
+                                </h3>
+                                <p className="text-muted-foreground text-sm leading-relaxed">
+                                    {screen.description}
+                                </p>
+                            </motion.button>
                         ))}
+
+                        {/* Controls */}
+                        <div className="flex gap-4 pt-6">
+                            <button
+                                onClick={prevScreen}
+                                className="w-12 h-12 rounded-full border border-border flex items-center justify-center hover:bg-background hover:border-primary hover:text-primary transition-all shadow-sm"
+                            >
+                                <ChevronLeft className="w-6 h-6" />
+                            </button>
+                            <button
+                                onClick={nextScreen}
+                                className="w-12 h-12 rounded-full border border-border flex items-center justify-center hover:bg-background hover:border-primary hover:text-primary transition-all shadow-sm"
+                            >
+                                <ChevronRight className="w-6 h-6" />
+                            </button>
+                        </div>
                     </div>
 
-                    {/* Next Button */}
-                    <motion.button
-                        whileHover={{ scale: 1.1 }}
-                        whileTap={{ scale: 0.9 }}
-                        onClick={nextScreen}
-                        className="w-12 h-12 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-lg hover:shadow-xl transition-shadow flex-shrink-0 z-30"
-                    >
-                        <ChevronRight className="w-6 h-6" />
-                    </motion.button>
+                    {/* Right: Phone Mockup */}
+                    <div className="col-span-7 flex justify-center">
+                        <div className="relative group">
+                            {/* Decorative Elements */}
+                            <div className="absolute -inset-10 bg-primary/10 rounded-full blur-[100px] group-hover:bg-primary/20 transition-all duration-500" />
+
+                            {/* Professional Phone Frame */}
+                            <div className="relative bg-[#0F172A] rounded-[3.5rem] p-3.5 shadow-[0_50px_100px_-20px_rgba(0,0,0,0.5)] border-[8px] border-[#1E293B] w-[340px]">
+                                {/* Notch */}
+                                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-7 bg-[#1E293B] rounded-b-3xl z-20 flex items-center justify-center gap-2">
+                                    <div className="w-2 h-2 rounded-full bg-[#0F172A]" />
+                                    <div className="w-8 h-1 rounded-full bg-[#0F172A]" />
+                                </div>
+
+                                {/* Speaker/Sensors hidden in notch area... */}
+
+                                <div className="bg-background rounded-[2.8rem] overflow-hidden relative">
+                                    <div className="h-[600px] relative overflow-hidden">
+                                        <AnimatePresence mode="wait">
+                                            <motion.div
+                                                key={activeScreen.id}
+                                                initial={{ opacity: 0, x: 20 }}
+                                                animate={{ opacity: 1, x: 0 }}
+                                                exit={{ opacity: 0, x: -20 }}
+                                                transition={{ duration: 0.3, ease: "easeInOut" }}
+                                                className="h-full"
+                                            >
+                                                {activeScreen.id === "menu" && (
+                                                    <MenuBrowseScreen
+                                                        activeCategory={activeCategory}
+                                                        setActiveCategory={setActiveCategory}
+                                                        filteredItems={filteredItems}
+                                                        menuCategories={menuCategories}
+                                                        onAdd={handleAddToCart}
+                                                    />
+                                                )}
+                                                {activeScreen.id === "cart" && (
+                                                    <CartScreen
+                                                        cart={cart}
+                                                        totalPrice={totalPrice}
+                                                        onRemove={handleRemoveFromCart}
+                                                        onAdd={handleAddToCart}
+                                                        onSend={handleSendOrder}
+                                                    />
+                                                )}
+                                                {activeScreen.id === "tracking" && (
+                                                    <OrderTrackingScreen status={orderStatus} />
+                                                )}
+                                                {activeScreen.id === "payment" && (
+                                                    <PaymentScreen
+                                                        totalPrice={totalPrice}
+                                                        paymentMethod={paymentMethod}
+                                                        setPaymentMethod={setPaymentMethod}
+                                                    />
+                                                )}
+                                            </motion.div>
+                                        </AnimatePresence>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
-                {/* Slide Indicators */}
-                <div className="flex justify-center gap-2 mt-20">
-                    {demoScreens.map((_, index) => {
-                        const centerIndex = (startIndex + 1) % demoScreens.length;
-                        return (
-                            <button
-                                key={index}
-                                onClick={() => {
-                                    const offset = (index - centerIndex + demoScreens.length) % demoScreens.length;
-                                    if (offset <= demoScreens.length / 2) {
-                                        for (let i = 0; i < offset; i++) nextScreen();
-                                    } else {
-                                        for (let i = 0; i < demoScreens.length - offset; i++) prevScreen();
-                                    }
-                                }}
-                                className={`h-2 rounded-full transition-all ${index === centerIndex
-                                    ? "w-8 bg-primary"
-                                    : "w-2 bg-muted-foreground/30 hover:bg-muted-foreground/50"
-                                    }`}
-                            />
-                        );
-                    })}
+                {/* Mobile/Tablet View (Below LG) */}
+                <div className="lg:hidden relative -mx-4">
+                    <div className="overflow-x-auto carousel-scrollbar snap-x snap-mandatory flex gap-6 px-4 pb-8 touch-pan-x">
+                        {demoScreens.map((screen) => (
+                            <div
+                                key={screen.id}
+                                className="snap-center snap-always flex-none w-[280px] sm:w-[320px]"
+                            >
+                                <div className="bg-[#0F172A] rounded-[2.5rem] p-2.5 shadow-2xl border-4 border-[#1E293B]">
+                                    <div className="bg-background rounded-[2rem] overflow-hidden relative h-[450px] sm:h-[500px]">
+                                        {screen.id === "menu" && (
+                                            <MenuBrowseScreen
+                                                activeCategory={activeCategory}
+                                                setActiveCategory={setActiveCategory}
+                                                filteredItems={filteredItems}
+                                                menuCategories={menuCategories}
+                                                onAdd={handleAddToCart}
+                                            />
+                                        )}
+                                        {screen.id === "cart" && (
+                                            <CartScreen
+                                                cart={cart}
+                                                totalPrice={totalPrice}
+                                                onRemove={handleRemoveFromCart}
+                                                onAdd={handleAddToCart}
+                                                onSend={handleSendOrder}
+                                            />
+                                        )}
+                                        {screen.id === "tracking" && (
+                                            <OrderTrackingScreen status={orderStatus} />
+                                        )}
+                                        {screen.id === "payment" && (
+                                            <PaymentScreen
+                                                totalPrice={totalPrice}
+                                                paymentMethod={paymentMethod}
+                                                setPaymentMethod={setPaymentMethod}
+                                            />
+                                        )}
+                                    </div>
+                                </div>
+                                <div className="text-center mt-6">
+                                    <h3 className="font-semibold text-primary mb-1">{screen.title}</h3>
+                                    <p className="text-xs text-muted-foreground">{screen.description}</p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
                 </div>
-
-                {/* Feature Description */}
-                <motion.p
-                    key={visibleScreens[1].index}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="text-center text-muted-foreground mt-6 max-w-md mx-auto"
-                >
-                    {visibleScreens[1].description}
-                </motion.p>
             </div>
         </section>
     );
 };
 
-// Screen Components
+// ... Subcomponents remain same ...
 const MenuBrowseScreen = ({ activeCategory, setActiveCategory, filteredItems, menuCategories, onAdd }) => (
     <div className="h-full flex flex-col">
         {/* Header */}

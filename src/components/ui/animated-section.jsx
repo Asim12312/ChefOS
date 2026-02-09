@@ -94,3 +94,5 @@ export const StaggerItem = ({
         </motion.div>
     );
 };
+
+export default AnimatedSection;
