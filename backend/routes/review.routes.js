@@ -12,8 +12,8 @@ const router = express.Router();
 
 router.post('/', createReview);
 router.get('/', getReviews);
-router.post('/:id/reply', protect, authorize('OWNER', 'ADMIN'), replyToReview);
-router.patch('/:id/spam', protect, authorize('OWNER', 'ADMIN'), markAsSpam);
+router.post('/:id/reply', protect, authorize(['OWNER', 'ADMIN'], ['reviews']), replyToReview);
+router.patch('/:id/spam', protect, authorize(['OWNER', 'ADMIN'], ['reviews']), markAsSpam);
 router.delete('/:id', protect, authorize('ADMIN'), deleteReview);
 
 export default router;

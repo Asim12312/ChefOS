@@ -10,7 +10,7 @@ router.post('/request', createServiceRequest);
 router.use(protect);
 router.use(verifyRestaurantOwnership); // Ensures req.restaurant is set
 
-router.get('/', authorize('OWNER', 'CHEF', 'WAITER', 'ADMIN'), getServiceRequests);
-router.patch('/:id', authorize('OWNER', 'CHEF', 'WAITER', 'ADMIN'), updateServiceRequest);
+router.get('/', authorize(['OWNER', 'CHEF', 'WAITER', 'ADMIN'], ['service']), getServiceRequests);
+router.patch('/:id', authorize(['OWNER', 'CHEF', 'WAITER', 'ADMIN'], ['service']), updateServiceRequest);
 
 export default router;

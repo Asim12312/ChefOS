@@ -9,15 +9,23 @@ import {
     deleteRestaurant
 } from '../controllers/restaurant.controller.js';
 import { protect, authorize, verifyRestaurantOwnership } from '../middleware/auth.js';
+import { cacheMiddleware, clearCache } from '../middleware/cache.middleware.js';
 
 const router = express.Router();
 
 router.post('/', protect, authorize('OWNER', 'ADMIN'), createRestaurant);
 router.get('/my-restaurants', protect, authorize('OWNER'), getMyRestaurants);
 router.get('/my-primary', protect, authorize('OWNER'), getMyPrimaryRestaurant);
-router.get('/:id', getRestaurant);
-router.patch('/:id', protect, authorize('OWNER', 'ADMIN'), verifyRestaurantOwnership, updateRestaurant);
-router.patch('/:id/settings', protect, authorize('OWNER', 'ADMIN'), verifyRestaurantOwnership, updateRestaurantSettings);
-router.delete('/:id', protect, authorize('OWNER', 'ADMIN'), verifyRestaurantOwnership, deleteRestaurant);
+router.get('/:id', cacheMiddleware(3600), getRestaurant);
+
+// Clear cache on updates
+const invalidateRestaurantCache = (req, res, next) => {
+    clearCache(`restaurant/${req.params.id}`);
+    next();
+};
+
+router.patch('/:id', protect, authorize(['OWNER', 'ADMIN'], ['settings']), verifyRestaurantOwnership, invalidateRestaurantCache, updateRestaurant);
+router.patch('/:id/settings', protect, authorize(['OWNER', 'ADMIN'], ['settings']), verifyRestaurantOwnership, invalidateRestaurantCache, updateRestaurantSettings);
+router.delete('/:id', protect, authorize(['OWNER', 'ADMIN'], ['settings']), verifyRestaurantOwnership, invalidateRestaurantCache, deleteRestaurant);
 
 export default router;

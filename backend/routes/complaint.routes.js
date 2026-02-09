@@ -10,7 +10,7 @@ router.post('/', createComplaint);
 router.use(protect);
 router.use(verifyRestaurantOwnership);
 
-router.get('/', authorize('OWNER', 'ADMIN'), getComplaints);
-router.patch('/:id', authorize('OWNER', 'ADMIN'), updateComplaint);
+router.get('/', authorize(['OWNER', 'ADMIN'], ['complaints']), getComplaints);
+router.patch('/:id', authorize(['OWNER', 'ADMIN'], ['complaints']), updateComplaint);
 
 export default router;

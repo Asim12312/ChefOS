@@ -9,15 +9,23 @@ import {
     getCategories
 } from '../controllers/menu.controller.js';
 import { protect, authorize } from '../middleware/auth.js';
+import { cacheMiddleware, clearCache } from '../middleware/cache.middleware.js';
 
 const router = express.Router();
 
-router.post('/', protect, authorize('OWNER', 'ADMIN'), createMenuItem);
-router.get('/', getMenuItems);
-router.get('/categories/:restaurantId', getCategories);
-router.get('/:id', getMenuItem);
-router.patch('/:id', protect, authorize('OWNER', 'ADMIN'), updateMenuItem);
-router.patch('/:id/availability', protect, authorize('OWNER', 'CHEF', 'ADMIN'), toggleAvailability);
-router.delete('/:id', protect, authorize('OWNER', 'ADMIN'), deleteMenuItem);
+// General Menu Invalidator
+const invalidateMenuCache = (req, res, next) => {
+    // We clear all menu cache for this restaurant to keep simple
+    clearCache('menu');
+    next();
+};
+
+router.post('/', protect, authorize(['OWNER', 'ADMIN'], ['menu']), invalidateMenuCache, createMenuItem);
+router.get('/', cacheMiddleware(3600), getMenuItems);
+router.get('/categories/:restaurantId', cacheMiddleware(3600), getCategories);
+router.get('/:id', cacheMiddleware(3600), getMenuItem);
+router.patch('/:id', protect, authorize(['OWNER', 'ADMIN'], ['menu']), invalidateMenuCache, updateMenuItem);
+router.patch('/:id/availability', protect, authorize(['OWNER', 'CHEF', 'ADMIN'], ['menu']), invalidateMenuCache, toggleAvailability);
+router.delete('/:id', protect, authorize(['OWNER', 'ADMIN'], ['menu']), invalidateMenuCache, deleteMenuItem);
 
 export default router;
