@@ -1,6 +1,6 @@
-import MenuItem from '../models/MenuItem.js';
+import InventoryItem from '../models/InventoryItem.js';
 
-// @desc    Get inventory (simplified menu items)
+// @desc    Get inventory items
 // @route   GET /api/inventory/:restaurantId
 // @access  Private (Owner/Chef/Admin)
 export const getInventory = async (req, res, next) => {
@@ -15,9 +15,8 @@ export const getInventory = async (req, res, next) => {
             });
         }
 
-        const items = await MenuItem.find({ restaurant: restaurantId, isDeleted: false })
-            .select('name category stockQuantity lowStockThreshold isLowStock isAvailable image')
-            .sort({ isLowStock: -1, stockQuantity: 1 }); // Low stock items first
+        const items = await InventoryItem.find({ restaurant: restaurantId, isDeleted: false })
+            .sort({ isLowStock: -1, updatedAt: -1 });
 
         res.status(200).json({
             success: true,
@@ -29,15 +28,46 @@ export const getInventory = async (req, res, next) => {
     }
 };
 
+// @desc    Create inventory item
+// @route   POST /api/inventory
+// @access  Private (Owner/Chef/Admin)
+export const createInventoryItem = async (req, res, next) => {
+    try {
+        const { name, sku, category, stockQuantity, lowStockThreshold, maxStock, unit, costPrice, supplier, image } = req.body;
+
+        const item = await InventoryItem.create({
+            restaurant: req.user.restaurant,
+            name,
+            sku,
+            category,
+            stockQuantity,
+            lowStockThreshold,
+            maxStock,
+            unit,
+            costPrice,
+            supplier,
+            image
+        });
+
+        res.status(201).json({
+            success: true,
+            data: item,
+            message: 'Inventory item created successfully'
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
 // @desc    Update stock quantity
 // @route   PATCH /api/inventory/:itemId
 // @access  Private (Owner/Chef/Admin)
 export const updateStock = async (req, res, next) => {
     try {
-        const { quantity } = req.body;
-        const menuItem = await MenuItem.findById(req.params.itemId);
+        const { quantity, reason } = req.body;
+        const item = await InventoryItem.findById(req.params.itemId);
 
-        if (!menuItem) {
+        if (!item) {
             return res.status(404).json({
                 success: false,
                 message: 'Item not found'
@@ -45,32 +75,99 @@ export const updateStock = async (req, res, next) => {
         }
 
         // Security
-        if (req.user.role !== 'ADMIN' && req.user.role !== 'CHEF' && req.user.restaurant?.toString() !== menuItem.restaurant.toString()) {
+        if (req.user.role !== 'ADMIN' && req.user.role !== 'CHEF' && req.user.restaurant?.toString() !== item.restaurant.toString()) {
             return res.status(403).json({
                 success: false,
                 message: 'Not authorized to update this item'
             });
         }
 
-        menuItem.stockQuantity = quantity;
-
-        // Auto-update status based on new quantity
-        if (menuItem.stockQuantity <= 0) {
-            menuItem.stockQuantity = 0;
-            menuItem.isAvailable = false;
-        } else if (!menuItem.isAvailable && menuItem.stockQuantity > 0) {
-            // Optional: Auto-enable if stock added? Let's keep it manual or user preference
-            // For now, let's just update the low stock flag
+        if (reason === 'restock' || (quantity > item.stockQuantity && !reason)) {
+            item.lastRestockDate = new Date();
         }
 
-        menuItem.isLowStock = menuItem.stockQuantity <= menuItem.lowStockThreshold;
-
-        await menuItem.save();
+        item.stockQuantity = quantity;
+        await item.save();
 
         res.status(200).json({
             success: true,
-            data: menuItem,
+            data: item,
             message: 'Stock updated successfully'
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+// @desc    Update inventory item details
+// @route   PUT /api/inventory/:itemId
+// @access  Private (Owner/Chef/Admin)
+export const updateInventoryItem = async (req, res, next) => {
+    try {
+        const item = await InventoryItem.findById(req.params.itemId);
+
+        if (!item) {
+            return res.status(404).json({
+                success: false,
+                message: 'Item not found'
+            });
+        }
+
+        // Security
+        if (req.user.role !== 'ADMIN' && req.user.role !== 'CHEF' && req.user.restaurant?.toString() !== item.restaurant.toString()) {
+            return res.status(403).json({
+                success: false,
+                message: 'Not authorized to update this item'
+            });
+        }
+
+        const updates = { ...req.body };
+        delete updates._id; // Ensure we don't try to update immutable _id
+
+        Object.keys(updates).forEach(key => {
+            item[key] = updates[key];
+        });
+
+        await item.save();
+
+        res.status(200).json({
+            success: true,
+            data: item,
+            message: 'Item updated successfully'
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+// @desc    Delete inventory item (soft delete)
+// @route   DELETE /api/inventory/:itemId
+// @access  Private (Owner/Chef/Admin)
+export const deleteInventoryItem = async (req, res, next) => {
+    try {
+        const item = await InventoryItem.findById(req.params.itemId);
+
+        if (!item) {
+            return res.status(404).json({
+                success: false,
+                message: 'Item not found'
+            });
+        }
+
+        // Security
+        if (req.user.role !== 'ADMIN' && req.user.role !== 'CHEF' && req.user.restaurant?.toString() !== item.restaurant.toString()) {
+            return res.status(403).json({
+                success: false,
+                message: 'Not authorized to delete this item'
+            });
+        }
+
+        item.isDeleted = true;
+        await item.save();
+
+        res.status(200).json({
+            success: true,
+            message: 'Item removed from inventory'
         });
     } catch (error) {
         next(error);

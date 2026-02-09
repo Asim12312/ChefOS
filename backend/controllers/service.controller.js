@@ -8,19 +8,6 @@ export const createServiceRequest = async (req, res, next) => {
     try {
         const { restaurant, table, type, comment } = req.body;
 
-        // Check active request from same table of same type
-        const existingRequest = await ServiceRequest.findOne({
-            table,
-            type,
-            status: { $in: ['PENDING', 'IN_PROGRESS'] }
-        });
-
-        if (existingRequest) {
-            return res.status(400).json({
-                success: false,
-                message: 'A request of this type is already pending for this table'
-            });
-        }
 
         const request = await ServiceRequest.create({
             restaurant,
@@ -84,7 +71,8 @@ export const updateServiceRequest = async (req, res, next) => {
             req.params.id,
             {
                 status,
-                handledBy: req.user._id
+                handledBy: req.user._id,
+                notifiedAt: ['COMPLETED', 'CANCELLED'].includes(status) ? new Date() : undefined
             },
             { new: true }
         ).populate('table', 'name');
@@ -93,9 +81,22 @@ export const updateServiceRequest = async (req, res, next) => {
             return res.status(404).json({ success: false, message: 'Request not found' });
         }
 
-        // Emit update
+        // Emit update to restaurant staff
         const io = req.app.get('io');
         io.to(`restaurant:${request.restaurant}`).emit('service:updated', request);
+
+        // Notify customer if request was completed or cancelled
+        if (status === 'COMPLETED') {
+            io.to(`table:${request.table?._id}`).emit('service:completed', {
+                type: request.type,
+                message: `Your ${request.type.replace('_', ' ').toLowerCase()} request has been completed!`
+            });
+        } else if (status === 'CANCELLED') {
+            io.to(`table:${request.table?._id}`).emit('service:cancelled', {
+                type: request.type,
+                message: `Your ${request.type.replace('_', ' ').toLowerCase()} request was cancelled.`
+            });
+        }
 
         res.status(200).json({
             success: true,

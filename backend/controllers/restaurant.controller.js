@@ -168,12 +168,15 @@ export const deleteRestaurant = async (req, res, next) => {
             });
         }
 
-        restaurant.isActive = false;
-        await restaurant.save();
+        // For a permanent delete as requested by the user:
+        await Restaurant.findByIdAndDelete(req.params.id);
+
+        // Remove restaurant reference from user
+        await User.findByIdAndUpdate(restaurant.owner, { $unset: { restaurant: "" } });
 
         res.status(200).json({
             success: true,
-            message: 'Restaurant deactivated successfully'
+            message: 'Restaurant permanently deleted'
         });
     } catch (error) {
         next(error);

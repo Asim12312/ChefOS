@@ -156,8 +156,6 @@ export const processVoiceOrder = async (req, res, next) => {
             message: `New voice order #${order.orderNumber}`
         });
 
-        io.to(`kds:${restaurant}`).emit('kds:new-order', order);
-
         res.status(201).json({
             success: true,
             message: 'Voice order created successfully',

@@ -1,46 +1,51 @@
 import Order from '../models/Order.js';
 import MenuItem from '../models/MenuItem.js';
 import Restaurant from '../models/Restaurant.js';
+import Table from '../models/Table.js';
 
 // @desc    Create order
 // @route   POST /api/orders
 // @access  Public
 export const createOrder = async (req, res, next) => {
     try {
-        const { restaurant, table, items, customerName, customerPhone, specialInstructions, paymentMethod } = req.body;
+        const { restaurant, table, items, customerName, customerPhone, specialInstructions, orderNote, paymentMethod, tipAmount = 0, promoCode, securityToken } = req.body;
 
-        // Validate restaurant
+        // Basic validations
+        if (!restaurant || !table || !items || items.length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'Restaurant, table, and items are required'
+            });
+        }
+
+        // Fetch Table for security validation
+        const tableDoc = await Table.findById(table);
+        if (!tableDoc) {
+            return res.status(404).json({
+                success: false,
+                message: 'Table not found'
+            });
+        }
+
+        // Security Validation (Scan-to-Order)
+        if (tableDoc.currentSession?.securityToken && tableDoc.currentSession.securityToken !== securityToken) {
+            return res.status(403).json({
+                success: false,
+                message: 'Security validation failed. Please re-scan table QR code to order.'
+            });
+        }
+
+        // Fetch Restaurant for tax rate and existence check
         const restaurantDoc = await Restaurant.findById(restaurant);
-        if (!restaurantDoc || !restaurantDoc.isActive) {
-            return res.status(400).json({
+        if (!restaurantDoc) {
+            return res.status(404).json({
                 success: false,
-                message: 'Restaurant not found or inactive'
+                message: 'Restaurant not found'
             });
         }
 
-        if (!restaurantDoc.features.orderingEnabled) {
-            return res.status(400).json({
-                success: false,
-                message: 'Ordering is currently disabled for this restaurant'
-            });
-        }
-
-        // Validate Table (if provided)
-        if (table) {
-            const tableDoc = await import('../models/Table.js').then(m => m.default.findById(table));
-            if (!tableDoc) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'Invalid Table ID'
-                });
-            }
-            if (tableDoc.restaurant.toString() !== restaurant) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'Table does not belong to this restaurant'
-                });
-            }
-        }
+        // Initialize Socket.IO
+        const io = req.app.get('io');
 
         // Validate and process items
         let subtotal = 0;
@@ -48,26 +53,17 @@ export const createOrder = async (req, res, next) => {
 
         for (const item of items) {
             const menuItem = await MenuItem.findById(item.menuItem);
-
-            if (!menuItem || menuItem.isDeleted) {
-                return res.status(400).json({
+            if (!menuItem) {
+                return res.status(404).json({
                     success: false,
-                    message: `Menu item ${item.menuItem} not found`
+                    message: `Menu item not found: ${item.menuItem}`
                 });
             }
 
-            if (!menuItem.isAvailable) {
+            if (!menuItem.isAvailable || menuItem.stockQuantity < item.quantity) {
                 return res.status(400).json({
                     success: false,
-                    message: `${menuItem.name} is currently unavailable`
-                });
-            }
-
-            // Stock Check
-            if (menuItem.stockQuantity < item.quantity) {
-                return res.status(400).json({
-                    success: false,
-                    message: `Insufficient stock for ${menuItem.name}. Only ${menuItem.stockQuantity} left.`
+                    message: `${menuItem.name} is currently unavailable or out of stock`
                 });
             }
 
@@ -84,57 +80,76 @@ export const createOrder = async (req, res, next) => {
         }
 
         // Calculate tax and total
-        const tax = (subtotal * restaurantDoc.taxRate) / 100;
-        const total = subtotal + tax;
+        const tax = (subtotal * (restaurantDoc.taxRate || 0)) / 100;
+
+        // Handle Promo Code (Simple Logic for now)
+        let discountAmount = 0;
+        if (promoCode === 'LOYALTY5') {
+            discountAmount = 5;
+        } else if (promoCode === 'WELCOME10') {
+            discountAmount = subtotal * 0.10;
+        }
+
+        const total = Math.max(0, subtotal + tax + Number(tipAmount) - discountAmount);
 
         // Create order
+        // tableDoc already fetched above for security validation
+
+        // Session logic: Reuse existing sessionId if table is occupied, else generate new one
+        let sessionId = tableDoc.currentSession?.sessionId;
+        if (!sessionId || tableDoc.status === 'FREE') {
+            sessionId = `SESS-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        }
+
         const order = await Order.create({
             restaurant,
             table,
+            sessionId, // Link to session
             items: orderItems,
             subtotal,
             tax,
+            tipAmount: Number(tipAmount),
+            discountAmount,
+            promoCode,
             total,
             customerName,
             customerPhone,
-            specialInstructions,
+            specialInstructions: orderNote || specialInstructions,
             paymentMethod: paymentMethod || 'CASH',
-            orderSource: 'MANUAL'
+            orderSource: 'QR' // Mark as QR source for scan-based orders
         });
 
-        // Populate order details
+        // Populate order details for response
         await order.populate('table');
 
-        // Update Table Status if it's a dine-in order
-        if (table) {
-            try {
-                const Table = await import('../models/Table.js').then(m => m.default);
-                const tableDoc = await Table.findById(table);
-                if (tableDoc && tableDoc.status === 'FREE') {
-                    tableDoc.status = 'OCCUPIED';
-                    tableDoc.currentSession = {
-                        occupiedAt: new Date(),
-                        startTime: new Date(),
-                        orderId: order._id
-                    };
-                    await tableDoc.save();
+        // Update Table Status & Session
+        try {
+            tableDoc.status = 'OCCUPIED';
+            tableDoc.currentSession = {
+                ...tableDoc.currentSession,
+                sessionId,
+                occupiedAt: tableDoc.currentSession?.occupiedAt || new Date(),
+                startTime: tableDoc.currentSession?.startTime || new Date(),
+                orderId: order._id
+            };
+            await tableDoc.save();
 
-                    // Emit table update event
-                    io.to(`restaurant:${restaurant}`).emit('table:updated', tableDoc);
-                }
-            } catch (tableError) {
-                console.error('Failed to update table status:', tableError);
+            // Emit table update event
+            if (io) {
+                io.to(`restaurant:${restaurant}`).emit('table:updated', tableDoc);
             }
+        } catch (tableError) {
+            console.error('Failed to update table status:', tableError);
         }
 
-        // Emit real-time event via Socket.IO
-        const io = req.app.get('io');
-        io.to(`restaurant:${restaurant}`).emit('order:created', {
-            order,
-            message: `New order #${order.orderNumber} from ${order.table?.name || 'Takeout'}`
-        });
+        // Emit real-time events via Socket.IO
+        if (io) {
+            io.to(`restaurant:${restaurant}`).emit('order:created', {
+                order,
+                message: `New order #${order.orderNumber} from ${order.table?.name || 'Table'}`
+            });
 
-        io.to(`kds:${restaurant}`).emit('kds:new-order', order);
+        }
 
         res.status(201).json({
             success: true,
@@ -142,6 +157,7 @@ export const createOrder = async (req, res, next) => {
             data: order
         });
     } catch (error) {
+        console.error('Create Order Error:', error);
         next(error);
     }
 };
@@ -238,9 +254,9 @@ export const updateOrderStatus = async (req, res, next) => {
 
         // Validate status transition
         const validTransitions = {
-            PENDING: ['ACCEPTED', 'CANCELLED'],
-            ACCEPTED: ['PREPARING', 'CANCELLED'],
-            PREPARING: ['READY', 'CANCELLED'],
+            PENDING: ['ACCEPTED', 'PREPARING', 'SERVED', 'CANCELLED'],
+            ACCEPTED: ['PREPARING', 'SERVED', 'CANCELLED'],
+            PREPARING: ['READY', 'SERVED', 'CANCELLED'],
             READY: ['SERVED'],
             SERVED: [],
             CANCELLED: []
@@ -345,7 +361,6 @@ export const updateOrderStatus = async (req, res, next) => {
         });
 
         io.to(`order:${order._id}`).emit('order:updated', order);
-        io.to(`kds:${order.restaurant}`).emit('kds:order-updated', order);
 
         res.status(200).json({
             success: true,
@@ -509,6 +524,80 @@ export const updateOrderPayment = async (req, res, next) => {
             success: true,
             message: 'Payment status updated',
             data: order
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+// @desc    Get active session orders (Bill)
+// @route   GET /api/orders/session/active/:tableId
+// @access  Public
+export const getActiveBill = async (req, res, next) => {
+    try {
+        const tableDoc = await Table.findById(req.params.tableId);
+
+        if (!tableDoc) {
+            return res.status(404).json({
+                success: false,
+                message: 'Table not found'
+            });
+        }
+
+        const sessionId = tableDoc.currentSession?.sessionId;
+
+        if (!sessionId) {
+            return res.status(200).json({
+                success: true,
+                message: 'No active session',
+                data: null
+            });
+        }
+
+        // Fetch all orders for this session that are not cancelled
+        const orders = await Order.find({
+            sessionId,
+            status: { $ne: 'CANCELLED' }
+        })
+            .populate('restaurant', 'name logo')
+            .populate('table', 'name')
+            .populate('items.menuItem', 'name image')
+            .sort({ createdAt: 1 });
+
+        if (orders.length === 0) {
+            return res.status(200).json({
+                success: true,
+                message: 'Session started but no orders yet',
+                data: null
+            });
+        }
+
+        // Aggregate session data
+        const restaurant = orders[0].restaurant;
+        const table = orders[0].table;
+        const allItems = orders.flatMap(o => o.items);
+        const subtotal = orders.reduce((sum, o) => sum + o.subtotal, 0);
+        const tax = orders.reduce((sum, o) => sum + o.tax, 0);
+        const total = orders.reduce((sum, o) => sum + o.total, 0);
+
+        res.status(200).json({
+            success: true,
+            data: {
+                sessionId,
+                restaurant,
+                table,
+                orders: orders.map(o => ({
+                    _id: o._id,
+                    orderNumber: o.orderNumber,
+                    status: o.status,
+                    createdAt: o.createdAt
+                })),
+                items: allItems,
+                subtotal,
+                tax,
+                total,
+                createdAt: orders[0].createdAt
+            }
         });
     } catch (error) {
         next(error);

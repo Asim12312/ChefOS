@@ -2,7 +2,6 @@ import Order from '../models/Order.js';
 import MenuItem from '../models/MenuItem.js';
 import Payment from '../models/Payment.js';
 import Table from '../models/Table.js';
-import Reservation from '../models/Reservation.js';
 import Complaint from '../models/Complaint.js';
 import mongoose from 'mongoose';
 
@@ -14,6 +13,9 @@ import mongoose from 'mongoose';
 export const getDashboardSummary = async (req, res, next) => {
     try {
         const { restaurantId } = req.params;
+        if (!mongoose.Types.ObjectId.isValid(restaurantId)) {
+            return res.status(400).json({ success: false, message: 'Invalid restaurant ID' });
+        }
         const restaurantObjectId = new mongoose.Types.ObjectId(restaurantId);
 
         const today = new Date();
@@ -150,15 +152,10 @@ export const getDashboardSummary = async (req, res, next) => {
         const recentOrders = await Order.find({ restaurant: restaurantObjectId })
             .sort({ createdAt: -1 })
             .limit(5)
-            .select('orderId status total createdAt table')
+            .select('orderNumber status total createdAt table')
             .populate('table', 'name')
             .lean();
 
-        const recentReservations = await Reservation.find({ restaurant: restaurantObjectId })
-            .sort({ createdAt: -1 })
-            .limit(5)
-            .select('customerName timeSlot guestCount status createdAt')
-            .lean();
 
         const recentComplaints = await Complaint.find({ restaurant: restaurantObjectId })
             .sort({ createdAt: -1 })
@@ -170,18 +167,10 @@ export const getDashboardSummary = async (req, res, next) => {
             ...recentOrders.map(o => ({
                 id: o._id,
                 type: 'order',
-                text: `Order #${o.orderId.slice(-4)} (${o.status})`, // Shorten ID
+                text: `Order #${o.orderNumber?.slice(-4) || '????'} (${o.status})`, // Shorten ID
                 subtext: o.table ? `Table: ${o.table.name}` : `Total: $${o.total}`,
                 time: o.createdAt,
                 status: o.status
-            })),
-            ...recentReservations.map(r => ({
-                id: r._id,
-                type: 'reservation',
-                text: `Reservation: ${r.customerName}`,
-                subtext: `${r.guestCount} guests at ${r.timeSlot.startTime}`,
-                time: r.createdAt,
-                status: r.status
             })),
             ...recentComplaints.map(c => ({
                 id: c._id,
@@ -220,7 +209,7 @@ export const getDashboardSummary = async (req, res, next) => {
 export const getOrdersAnalytics = async (req, res, next) => {
     try {
         const { restaurantId } = req.params;
-        const { startDate, endDate, groupBy = 'day' } = req.query;
+        const { startDate, endDate, groupBy = 'day', timezone = 'UTC' } = req.query;
 
         const matchQuery = { restaurant: restaurantId };
 
@@ -237,7 +226,7 @@ export const getOrdersAnalytics = async (req, res, next) => {
             { $match: { ...matchQuery, restaurant: new mongoose.Types.ObjectId(restaurantId) } },
             {
                 $group: {
-                    _id: { $dateToString: { format: groupFormat, date: '$createdAt' } },
+                    _id: { $dateToString: { format: groupFormat, date: '$createdAt', timezone } },
                     totalOrders: { $sum: 1 },
                     totalRevenue: { $sum: '$total' },
                     avgOrderValue: { $avg: '$total' },
@@ -266,40 +255,56 @@ export const getRevenueAnalytics = async (req, res, next) => {
         const { restaurantId } = req.params;
         const { startDate, endDate } = req.query;
 
-        const matchQuery = {
-            restaurant: restaurantId,
-            status: 'COMPLETED'
-        };
+        const currentStart = new Date(startDate);
+        const currentEnd = new Date(endDate);
+        const duration = currentEnd.getTime() - currentStart.getTime();
+        const previousStart = new Date(currentStart.getTime() - duration);
+        const previousEnd = new Date(currentStart);
 
-        if (startDate || endDate) {
-            matchQuery.createdAt = {};
-            if (startDate) matchQuery.createdAt.$gte = new Date(startDate);
-            if (endDate) matchQuery.createdAt.$lte = new Date(endDate);
-        }
-
-        const revenue = await Payment.aggregate([
-            { $match: { ...matchQuery, restaurant: new mongoose.Types.ObjectId(restaurantId) } },
-            {
-                $group: {
-                    _id: null,
-                    totalRevenue: { $sum: '$amount' },
-                    totalTransactions: { $sum: 1 },
-                    avgTransactionValue: { $avg: '$amount' },
-                    paymentMethods: {
-                        $push: '$paymentMethod'
+        const getStats = async (start, end) => {
+            const result = await Order.aggregate([
+                {
+                    $match: {
+                        restaurant: new mongoose.Types.ObjectId(restaurantId),
+                        paymentStatus: 'PAID',
+                        createdAt: { $gte: start, $lte: end }
+                    }
+                },
+                {
+                    $group: {
+                        _id: null,
+                        totalRevenue: { $sum: '$total' },
+                        totalTransactions: { $sum: 1 },
+                        avgTransactionValue: { $avg: '$total' }
                     }
                 }
-            }
-        ]);
+            ]);
+            return result[0] || { totalRevenue: 0, totalTransactions: 0, avgTransactionValue: 0 };
+        };
 
-        // Payment method breakdown
-        const paymentMethodStats = await Payment.aggregate([
-            { $match: { ...matchQuery, restaurant: new mongoose.Types.ObjectId(restaurantId) } },
+        const currentStats = await getStats(currentStart, currentEnd);
+        const previousStats = await getStats(previousStart, previousEnd);
+
+        // Calculate trends
+        const calculateTrend = (curr, prev) => {
+            if (prev === 0) return curr > 0 ? 100 : 0;
+            return ((curr - prev) / prev) * 100;
+        };
+
+        // Get payment method breakdown for CURRENT period
+        const paymentMethodStats = await Order.aggregate([
+            {
+                $match: {
+                    restaurant: new mongoose.Types.ObjectId(restaurantId),
+                    paymentStatus: 'PAID',
+                    createdAt: { $gte: currentStart, $lte: currentEnd }
+                }
+            },
             {
                 $group: {
                     _id: '$paymentMethod',
                     count: { $sum: 1 },
-                    total: { $sum: '$amount' }
+                    total: { $sum: '$total' }
                 }
             }
         ]);
@@ -307,7 +312,12 @@ export const getRevenueAnalytics = async (req, res, next) => {
         res.status(200).json({
             success: true,
             data: {
-                ...revenue[0],
+                ...currentStats,
+                trends: {
+                    revenue: Number(calculateTrend(currentStats.totalRevenue, previousStats.totalRevenue).toFixed(1)),
+                    orders: Number(calculateTrend(currentStats.totalTransactions, previousStats.totalTransactions).toFixed(1)),
+                    ticket: Number(calculateTrend(currentStats.avgTransactionValue, previousStats.avgTransactionValue).toFixed(1))
+                },
                 paymentMethodBreakdown: paymentMethodStats
             }
         });
@@ -322,7 +332,7 @@ export const getRevenueAnalytics = async (req, res, next) => {
 export const getPeakHoursAnalytics = async (req, res, next) => {
     try {
         const { restaurantId } = req.params;
-        const { startDate, endDate } = req.query;
+        const { startDate, endDate, timezone = 'UTC' } = req.query;
 
         const matchQuery = { restaurant: restaurantId };
 
@@ -336,7 +346,7 @@ export const getPeakHoursAnalytics = async (req, res, next) => {
             { $match: { ...matchQuery, restaurant: new mongoose.Types.ObjectId(restaurantId) } },
             {
                 $group: {
-                    _id: { $hour: '$createdAt' },
+                    _id: { $hour: { date: '$createdAt', timezone } },
                     orderCount: { $sum: 1 },
                     totalRevenue: { $sum: '$total' }
                 }
@@ -349,7 +359,7 @@ export const getPeakHoursAnalytics = async (req, res, next) => {
             { $match: { ...matchQuery, restaurant: new mongoose.Types.ObjectId(restaurantId) } },
             {
                 $group: {
-                    _id: { $dayOfWeek: '$createdAt' },
+                    _id: { $dayOfWeek: { date: '$createdAt', timezone } },
                     orderCount: { $sum: 1 },
                     totalRevenue: { $sum: '$total' }
                 }
@@ -466,6 +476,9 @@ export const getTableUsageAnalytics = async (req, res, next) => {
 export const getNotifications = async (req, res, next) => {
     try {
         const { restaurantId } = req.params;
+        if (!mongoose.Types.ObjectId.isValid(restaurantId)) {
+            return res.status(400).json({ success: false, message: 'Invalid restaurant ID' });
+        }
 
         // Fetch actionable items
         const pendingOrders = await Order.find({ restaurant: restaurantId, status: 'PENDING' })
@@ -478,21 +491,13 @@ export const getNotifications = async (req, res, next) => {
             .limit(5)
             .lean();
 
-        const upcomingReservations = await Reservation.find({
-            restaurant: restaurantId,
-            status: 'CONFIRMED',
-            date: { $gte: new Date() } // Future reservations
-        })
-            .sort({ date: 1, 'timeSlot.startTime': 1 })
-            .limit(5)
-            .lean();
 
         const notifications = [
             ...pendingOrders.map(o => ({
                 id: o._id,
                 type: 'order',
                 title: 'New Order Pending',
-                message: `Order #${o.orderId.slice(-4)} needs acceptance`,
+                message: `Order #${o.orderNumber?.slice(-4) || '????'} needs acceptance`,
                 time: o.createdAt,
                 unread: true,
                 link: '/orders'
@@ -506,15 +511,6 @@ export const getNotifications = async (req, res, next) => {
                 unread: true,
                 link: '/complaints'
             })),
-            ...upcomingReservations.map(r => ({
-                id: r._id,
-                type: 'reservation',
-                title: 'Upcoming Reservation',
-                message: `${r.customerName} (${r.guestCount} ppl) at ${r.timeSlot.startTime}`,
-                time: r.createdAt, // Or reservation time? Using created for "notification" feel
-                unread: true,
-                link: '/reservations'
-            }))
         ].sort((a, b) => new Date(b.time) - new Date(a.time));
 
         res.status(200).json({

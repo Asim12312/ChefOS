@@ -108,6 +108,9 @@ export const login = async (req, res, next) => {
             });
         }
 
+        // Populate restaurant for immediate frontend benefit
+        await user.populate('restaurant');
+
         // Generate tokens
         const token = generateToken(user._id);
         const refreshToken = generateRefreshToken(user._id);
@@ -120,13 +123,7 @@ export const login = async (req, res, next) => {
             success: true,
             message: 'Login successful',
             data: {
-                user: {
-                    id: user._id,
-                    name: user.name,
-                    email: user.email,
-                    role: user.role,
-                    restaurant: user.restaurant
-                },
+                user, // Return full populated user
                 token,
                 refreshToken
             }

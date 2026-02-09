@@ -1,4 +1,6 @@
 import Table from '../models/Table.js';
+import Order from '../models/Order.js';
+import Payment from '../models/Payment.js';
 import QRCode from 'qrcode';
 
 // @desc    Create table
@@ -60,10 +62,21 @@ export const getTables = async (req, res, next) => {
 
         const tables = await Table.find({ restaurant, isActive: true });
 
+        // Generate QR code images for all tables (for dashboard visibility)
+        const frontendUrl = process.env.CLIENT_URL || 'http://localhost:5173';
+        const tablesWithQR = await Promise.all(tables.map(async (table) => {
+            const fullQrUrl = `${frontendUrl}${table.qrCode}`;
+            const qrCodeImage = await QRCode.toDataURL(fullQrUrl);
+            return {
+                ...table.toObject(),
+                qrCodeImage
+            };
+        }));
+
         res.status(200).json({
             success: true,
             count: tables.length,
-            data: tables
+            data: tablesWithQR
         });
     } catch (error) {
         next(error);
@@ -82,6 +95,13 @@ export const getTable = async (req, res, next) => {
                 success: false,
                 message: 'Table not found'
             });
+        }
+
+        // Generate/Retrieve Security Token for protection
+        if (!table.currentSession?.securityToken || table.status === 'FREE') {
+            if (!table.currentSession) table.currentSession = {};
+            table.currentSession.securityToken = Math.random().toString(36).substring(2, 10).toUpperCase();
+            await table.save();
         }
 
         // Generate QR code image with full URL
@@ -236,9 +256,62 @@ export const resetTable = async (req, res, next) => {
             });
         }
 
+        const sessionId = table.currentSession?.sessionId;
+
+        // 1. Mark orders for this session as PAID if they aren't already
+        if (sessionId) {
+            const orders = await Order.find({ sessionId, paymentStatus: 'UNPAID' });
+
+            for (const order of orders) {
+                order.paymentStatus = 'PAID';
+                if (!order.paymentMethod) order.paymentMethod = 'CASH'; // Default to CASH for manual reset
+                await order.save();
+
+                // 2. Create a Payment record if none exists for this order
+                const existingPayment = await Payment.findOne({ order: order._id });
+                if (!existingPayment) {
+                    await Payment.create({
+                        restaurant: table.restaurant,
+                        order: order._id,
+                        amount: order.total,
+                        paymentMethod: order.paymentMethod,
+                        status: 'COMPLETED',
+                        transactionId: `CASH-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`
+                    });
+                } else if (existingPayment.status !== 'COMPLETED') {
+                    existingPayment.status = 'COMPLETED';
+                    await existingPayment.save();
+                }
+            }
+
+            // Emit update for orders if any were changed
+            if (orders.length > 0) {
+                const io = req.app.get('io');
+                if (io) {
+                    io.to(`restaurant:${table.restaurant}`).emit('order:payment-updated', {
+                        restaurantId: table.restaurant,
+                        message: `Orders for ${table.name} marked as PAID via table reset.`
+                    });
+                }
+            }
+        }
+
         table.status = 'FREE';
-        table.currentSession = {}; // Clear session data
+        table.currentSession = {
+            sessionId: null,
+            securityToken: null,
+            startTime: null,
+            occupiedAt: null,
+            orderId: null,
+            waiterId: null
+        }; // Clear session data completely
         await table.save();
+
+        // Emit table update event
+        const io = req.app.get('io');
+        if (io) {
+            io.to(`restaurant:${table.restaurant}`).emit('table:updated', table);
+        }
 
         res.status(200).json({
             success: true,

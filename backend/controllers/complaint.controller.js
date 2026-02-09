@@ -17,9 +17,9 @@ export const createComplaint = async (req, res, next) => {
             voiceNoteUrl
         });
 
-        // Emit socket event to admins
+        // Emit socket event to admins/staff
         const io = req.app.get('io');
-        io.to(`restaurant:${restaurant}:admin`).emit('complaint:new', {
+        io.to(`restaurant:${restaurant}`).emit('complaint:new', {
             complaint,
             message: `New ${severity} complaint from ${customerName}`
         });
