@@ -1,102 +1,183 @@
 import { useState, useEffect } from 'react';
 import { Outlet, useParams, useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ShoppingBag, Bell, ChevronLeft, Flag } from 'lucide-react';
+import { ChevronLeft, Flag, Menu } from 'lucide-react';
 import api from '../../config/api';
-import toast from 'react-hot-toast';
-import { useCart } from '../../context/CartContext'; // Assuming we will create/have this
+import { useCart } from '../../context/CartContext';
+import CustomerSidebar from '../../components/customer/CustomerSidebar';
+import FloatingActionMenu from '../../components/customer/FloatingActionMenu';
+import RestaurantInfoModal from '../../components/customer/RestaurantInfoModal';
+import ChefAI from '../../components/customer/ChefAI';
+import PWAInstallPrompt from '../../components/common/PWAInstallPrompt';
 
 const CustomerLayout = () => {
     const params = useParams();
     const [searchParams] = useSearchParams();
-    const restaurantId = params.restaurantId;
-    // Support both path param and query param for tableId
-    const tableId = params.tableId || searchParams.get('table');
-    const navigate = useNavigate();
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const [chefAIOpen, setChefAIOpen] = useState(false);
+    const [isRestaurantInfoOpen, setIsRestaurantInfoOpen] = useState(false);
 
-    const { cartCount } = useCart();
+    // Extract parameters
+    const { restaurantId: pathRestaurantId, tableId: pathTableId } = params;
+    const queryTableId = searchParams.get('table');
+
+    // Effective IDs
+    const restaurantId = pathRestaurantId || localStorage.getItem('tablefy_restaurant_id');
+    const tableId = pathTableId || queryTableId || localStorage.getItem('tablefy_table_id');
+
+    // Sync to localStorage
+    useEffect(() => {
+        if (pathRestaurantId) {
+            localStorage.setItem('tablefy_restaurant_id', pathRestaurantId);
+        }
+        if (pathTableId || queryTableId) {
+            localStorage.setItem('tablefy_table_id', pathTableId || queryTableId);
+        }
+    }, [pathRestaurantId, pathTableId, queryTableId]);
+
+    const navigate = useNavigate();
     // Fetch Restaurant Details
-    const { data: restaurant, isLoading } = useQuery({
+    const { data: restaurant, isLoading: restaurantLoading, isError: restaurantError, error: restError, refetch: refetchRest } = useQuery({
         queryKey: ['restaurant', restaurantId],
         queryFn: async () => {
+            if (!restaurantId) return null;
             const res = await api.get(`/restaurant/${restaurantId}`);
             return res.data.data;
         },
-        enabled: !!restaurantId
+        enabled: !!restaurantId,
+        retry: 1
     });
 
-    const handleCallWaiter = async () => {
-        if (!tableId) {
-            toast.error("Please scan a table QR code to call a waiter.");
-            return;
-        }
-        try {
-            await api.post('/service-requests', {
-                restaurant: restaurantId,
-                table: tableId,
-                type: 'CALL_WAITER'
-            });
-            toast.success("Waiter has been notified!");
-        } catch (error) {
-            console.error(error);
-            toast.error("Failed to call waiter.");
-        }
-    };
+    // Fetch Table Details (To get securityToken for session protection)
+    const { data: table, isLoading: tableLoading } = useQuery({
+        queryKey: ['table', tableId],
+        queryFn: async () => {
+            if (!tableId) return null;
+            const res = await api.get(`/tables/${tableId}`);
+            if (res.data.data?.currentSession?.securityToken) {
+                localStorage.setItem('tablefy_security_token', res.data.data.currentSession.securityToken);
+            }
+            return res.data.data;
+        },
+        enabled: !!tableId,
+        retry: 1
+    });
 
-    if (isLoading) return <div className="min-h-screen bg-black text-white flex items-center justify-center">Loading...</div>;
+    const isLoading = restaurantLoading || tableLoading;
+    const isError = restaurantError;
+    const error = restError;
+    const refetch = refetchRest;
 
-    if (!restaurant) return <div className="min-h-screen bg-black text-white flex items-center justify-center">Restaurant not found</div>;
+    if (isLoading) return (
+        <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center gap-4">
+            <div className="h-12 w-12 animate-spin rounded-full border-4 border-primary border-t-transparent shadow-lg" />
+            <p className="animate-pulse text-sm font-medium text-gray-400 tracking-widest uppercase">Connecting to Kitchen...</p>
+        </div>
+    );
+
+    if (isError || (!isLoading && !restaurant && restaurantId)) return (
+        <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-6 text-center">
+            <div className="w-20 h-20 bg-red-500/10 rounded-full flex items-center justify-center mb-6">
+                <Flag size={40} className="text-red-500" />
+            </div>
+            <h2 className="text-2xl font-bold mb-2">Connection Issue</h2>
+            <p className="text-gray-400 mb-8 max-w-xs mx-auto">
+                {error?.response?.status === 404
+                    ? "We couldn't find this restaurant. Please check the QR code."
+                    : "Having trouble connecting to the server. Please check your internet or try again."
+                }
+            </p>
+            <button
+                onClick={() => refetch()}
+                className="btn-primary w-full max-w-xs py-4 px-8 rounded-xl font-bold transition-all active:scale-95"
+            >
+                Try Again
+            </button>
+        </div>
+    );
+
+    if (!restaurant) return (
+        <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-6 text-center">
+            <h2 className="text-2xl font-bold mb-2">Welcome!</h2>
+            <p className="text-gray-400 mb-8">Please scan a table QR code to view the menu.</p>
+        </div>
+    );
 
     return (
-        <div className="min-h-screen bg-black text-white pb-20">
+        <div className="min-h-screen bg-black text-white font-sans selection:bg-primary selection:text-black">
+            {/* Sidebar */}
+            <CustomerSidebar
+                isOpen={isSidebarOpen}
+                onClose={() => setIsSidebarOpen(false)}
+                restaurant={restaurant}
+            />
+
             {/* Header */}
-            <header className="fixed top-0 left-0 right-0 z-40 bg-black/80 backdrop-blur-md border-b border-white/10 px-4 py-3 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                    {/* Back button logic could go here if needed, or simple branding */}
-                    <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center font-bold">
-                        {restaurant.name.charAt(0)}
-                    </div>
-                    <div>
-                        <h1 className="font-bold text-sm leading-tight">{restaurant.name}</h1>
-                        {tableId && <span className="text-secondary text-xs">Table Attached</span>}
+            <header className="fixed top-0 left-0 right-0 z-40 bg-black/80 backdrop-blur-md border-b border-white/5 pr-4 pl-4 h-14 sm:h-16 flex items-center justify-between">
+                <div className="flex items-center gap-1 sm:gap-3">
+                    <button
+                        onClick={() => setIsSidebarOpen(true)}
+                        className="p-2 -ml-2 text-white/70 hover:text-white transition-colors active:scale-90"
+                    >
+                        <Menu size={24} />
+                    </button>
+
+                    <div
+                        className="flex items-center gap-3 cursor-pointer group active:scale-[0.98] transition-all"
+                        onClick={() => setIsRestaurantInfoOpen(true)}
+                    >
+                        <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center font-bold text-black border border-white/10 shadow-lg shadow-primary/20 group-hover:shadow-primary/40 transition-all overflow-hidden">
+                            {restaurant.logo ? (
+                                <img src={restaurant.logo} alt="logo" className="w-full h-full object-cover" />
+                            ) : (
+                                restaurant.name.charAt(0)
+                            )}
+                        </div>
+                        <div>
+                            <h1 className="font-bold text-sm leading-tight text-white group-hover:text-primary transition-colors">{restaurant.name}</h1>
+                            {tableId && <span className="text-secondary text-[10px] sm:text-xs flex items-center gap-1"><span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span> Table Attached</span>}
+                        </div>
                     </div>
                 </div>
             </header>
 
             {/* Main Content */}
             <main className="pt-20 px-4">
-                <Outlet context={{ restaurant, tableId }} />
+                <Outlet context={{
+                    restaurant,
+                    tableId,
+                    openRestaurantInfo: () => setIsRestaurantInfoOpen(true),
+                    openChefAI: () => setChefAIOpen(true)
+                }} />
             </main>
 
-            {/* Floating Action Buttons */}
-            <div className="fixed bottom-6 right-6 flex flex-col gap-4 z-40">
-                {/* Call Waiter */}
-                {tableId && (
-                    <button
-                        onClick={handleCallWaiter}
-                        className="w-12 h-12 rounded-full bg-white text-black flex items-center justify-center shadow-lg active:scale-95 transition-transform"
-                        title="Call Waiter"
-                    >
-                        <Bell size={20} />
-                    </button>
-                )}
+            <PWAInstallPrompt />
 
-                {/* Cart FAB */}
-                <Link
-                    to={tableId ? `/cart?table=${tableId}` : "/cart"}
-                    className="w-14 h-14 rounded-full bg-primary text-white flex items-center justify-center shadow-lg shadow-primary/30 active:scale-95 transition-transform relative"
-                >
-                    <ShoppingBag size={24} />
-                    {/* Badge placeholder - cart count */}
-                    {cartCount > 0 && (
-                        <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full text-xs flex items-center justify-center font-bold border-2 border-black animate-bounce">
-                            {cartCount}
-                        </span>
-                    )}
-                </Link>
-            </div>
+            {/* Unified Floating Action Menu */}
+            <FloatingActionMenu
+                restaurant={restaurant}
+                tableId={tableId}
+                openChefAI={() => setChefAIOpen(true)}
+            />
+
+            {/* Global Restaurant Info Modal */}
+            <RestaurantInfoModal
+                isOpen={isRestaurantInfoOpen}
+                onClose={() => setIsRestaurantInfoOpen(false)}
+                restaurant={restaurant}
+            />
+
+            {/* Chef AI Digital Assistant - Render only for Premium */}
+            {restaurant?.subscription?.plan === 'PREMIUM' && (
+                <ChefAI
+                    restaurant={restaurant}
+                    externalOpen={chefAIOpen}
+                    onClose={() => setChefAIOpen(false)}
+                />
+            )}
         </div>
     );
 };
+
 
 export default CustomerLayout;

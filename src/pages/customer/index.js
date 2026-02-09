@@ -1,3 +1,10 @@
 export { default as Menu } from './Menu';
 export { default as CustomerLayout } from './CustomerLayout';
-export { Cart, Checkout, OrderTracking, VoiceOrder } from '../../components/PlaceholderPage.jsx';
+export { default as Cart } from './Cart';
+export { default as Checkout } from './Checkout';
+export { default as OrderTracking } from './OrderTracking';
+export { default as ReviewFeedback } from './ReviewFeedback';
+export { default as CustomerComplaints } from './CustomerComplaints';
+export { default as CustomerBill } from './CustomerBill';
+export { default as CustomerReviews } from './CustomerReviews';
+export { default as RateStaff } from './RateStaff';
