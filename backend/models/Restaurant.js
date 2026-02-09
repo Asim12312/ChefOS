@@ -15,6 +15,10 @@ const restaurantSchema = new mongoose.Schema({
         type: String,
         trim: true
     },
+    cuisine: {
+        type: String,
+        trim: true
+    },
     logo: {
         type: String // URL to logo image
     },
@@ -30,8 +34,7 @@ const restaurantSchema = new mongoose.Schema({
     },
     contact: {
         phone: String,
-        email: String,
-        whatsappNumber: String // For order notifications
+        email: String
     },
     socialMedia: {
         instagram: String,
@@ -59,14 +62,30 @@ const restaurantSchema = new mongoose.Schema({
             type: Boolean,
             default: false
         },
-        onlinePaymentsEnabled: {
-            type: Boolean,
-            default: false
-        },
         tableQREnabled: {
             type: Boolean,
             default: true
+        },
+        reviewsEnabled: {
+            type: Boolean,
+            default: true
+        },
+        autoConfirmOrders: {
+            type: Boolean,
+            default: false
+        },
+        allowStaffReviews: {
+            type: Boolean,
+            default: false
+        },
+        inventoryAlerts: {
+            type: Boolean,
+            default: true
         }
+    },
+    isPrivate: {
+        type: Boolean,
+        default: false
     },
     theme: {
         primaryColor: {
@@ -95,6 +114,21 @@ const restaurantSchema = new mongoose.Schema({
     isActive: {
         type: Boolean,
         default: true
+    },
+    subscription: {
+        plan: {
+            type: String,
+            enum: ['FREE', 'PREMIUM'],
+            default: 'FREE'
+        },
+        status: {
+            type: String,
+            enum: ['active', 'canceled', 'past_due', 'paused', 'trialing', 'deleted'],
+            default: 'active'
+        },
+        paddleCustomerId: String,
+        paddleSubscriptionId: String,
+        premiumUntil: Date
     }
 }, {
     timestamps: true

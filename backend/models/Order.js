@@ -31,6 +31,7 @@ const orderSchema = new mongoose.Schema({
         type: String,
         unique: true
     },
+    sessionId: String, // Groups orders belonging to same table session
     items: [orderItemSchema],
     subtotal: {
         type: Number,
@@ -70,6 +71,17 @@ const orderSchema = new mongoose.Schema({
     customerName: String,
     customerPhone: String,
     specialInstructions: String,
+    tipAmount: {
+        type: Number,
+        default: 0,
+        min: 0
+    },
+    discountAmount: {
+        type: Number,
+        default: 0,
+        min: 0
+    },
+    promoCode: String,
     statusHistory: [{
         status: String,
         timestamp: {
@@ -132,7 +144,7 @@ orderSchema.pre('save', function (next) {
 });
 
 // Indexes for efficient queries
-orderSchema.index({ restaurant: 1, status: 1 });
+orderSchema.index({ restaurant: 1, status: 1, createdAt: -1 }); // Highly efficient for Analytics status filtering
 orderSchema.index({ restaurant: 1, createdAt: -1 });
 orderSchema.index({ table: 1, createdAt: -1 });
 

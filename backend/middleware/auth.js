@@ -43,16 +43,47 @@ export const protect = async (req, res, next) => {
     }
 };
 
-// Role-based authorization
-export const authorize = (...roles) => {
+// Role or Permission based authorization
+// Supports: 
+// 1. authorize('OWNER', 'ADMIN') - Legacy style
+// 2. authorize(['OWNER'], ['orders']) - New granular style
+export const authorize = (...args) => {
+    let roles = [];
+    let permissions = [];
+
+    if (Array.isArray(args[0])) {
+        roles = args[0];
+        permissions = args[1] || [];
+    } else {
+        roles = args;
+    }
+
     return (req, res, next) => {
-        if (!roles.includes(req.user.role)) {
-            return res.status(403).json({
-                success: false,
-                message: `User role '${req.user.role}' is not authorized to access this route`
-            });
+        const user = req.user;
+
+        // Admin always has full access
+        if (user.role === 'ADMIN') return next();
+
+        // Check if user has required role
+        const hasRole = roles.length > 0 && roles.includes(user.role);
+
+        // Check if user has required permission
+        const hasPermission = permissions.length > 0 &&
+            permissions.some(p => user.permissions?.includes(p));
+
+        // Grant access if:
+        // 1. User is OWNER (they have all access by default in this system logic)
+        // 2. User has one of the required roles
+        // 3. User has one of the required permissions
+        // 4. No restrictions were provided
+        if (user.role === 'OWNER' || hasRole || hasPermission || (roles.length === 0 && permissions.length === 0)) {
+            return next();
         }
-        next();
+
+        return res.status(403).json({
+            success: false,
+            message: `User not authorized to access this route.`
+        });
     };
 };
 

@@ -13,7 +13,7 @@ const serviceRequestSchema = new mongoose.Schema({
     },
     type: {
         type: String,
-        enum: ['CALL_WAITER', 'REQUEST_BILL', 'CLEANING', 'OTHER'],
+        enum: ['CALL_WAITER', 'REQUEST_BILL', 'CLEANING', 'WATER', 'CUTLERY', 'OTHER'],
         required: true
     },
     status: {
@@ -25,6 +25,12 @@ const serviceRequestSchema = new mongoose.Schema({
         type: String,
         trim: true
     },
+    priority: {
+        type: String,
+        enum: ['LOW', 'MEDIUM', 'HIGH'],
+        default: 'MEDIUM'
+    },
+    notifiedAt: Date,
     handledBy: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User'

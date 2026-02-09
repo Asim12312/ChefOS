@@ -9,7 +9,7 @@ const reviewSchema = new mongoose.Schema({
     order: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Order',
-        required: true
+        required: false
     },
     rating: {
         type: Number,
@@ -51,7 +51,11 @@ const reviewSchema = new mongoose.Schema({
 
 // Indexes
 reviewSchema.index({ restaurant: 1, isPublished: 1 });
-reviewSchema.index({ order: 1 }, { unique: true }); // One review per order
+// Enforce unique review per order, but allow multiple reviews where order is missing/null (guest reviews)
+reviewSchema.index({ order: 1 }, {
+    unique: true,
+    partialFilterExpression: { order: { $type: 'objectId' } }
+});
 reviewSchema.index({ rating: 1 });
 
 const Review = mongoose.model('Review', reviewSchema);

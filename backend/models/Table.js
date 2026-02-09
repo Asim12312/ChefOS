@@ -30,6 +30,8 @@ const tableSchema = new mongoose.Schema({
         default: 'FREE'
     },
     currentSession: {
+        sessionId: String, // Unique ID for current occupation session
+        securityToken: String, // Secret token for placing orders (Prevents remote abuse)
         startTime: Date,
         occupiedAt: Date, // Track when table became occupied
         customerCount: Number,

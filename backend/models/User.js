@@ -43,6 +43,13 @@ const userSchema = new mongoose.Schema({
         type: Date,
         select: false
     },
+    profileImage: {
+        type: String // URL to image
+    },
+    permissions: {
+        type: [String],
+        default: []
+    },
     isActive: {
         type: Boolean,
         default: true
