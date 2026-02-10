@@ -27,7 +27,14 @@ api.interceptors.request.use(
 
 // Response interceptor - Handle errors and token refresh
 api.interceptors.response.use(
-    (response) => response,
+    (response) => {
+        // Validate response structure
+        if (!response || !response.data) {
+            console.error('Invalid response structure:', response);
+            return Promise.reject(new Error('Empty response from server'));
+        }
+        return response;
+    },
     async (error) => {
         const originalRequest = error.config;
 
@@ -42,9 +49,15 @@ api.interceptors.response.use(
                         refreshToken,
                     });
 
+                    if (!response?.data?.data) {
+                        throw new Error('Invalid token refresh response');
+                    }
+
                     const { token, refreshToken: newRefreshToken } = response.data.data;
                     localStorage.setItem('token', token);
-                    localStorage.setItem('refreshToken', newRefreshToken);
+                    if (newRefreshToken) {
+                        localStorage.setItem('refreshToken', newRefreshToken);
+                    }
 
                     originalRequest.headers.Authorization = `Bearer ${token}`;
                     return api(originalRequest);
@@ -61,8 +74,11 @@ api.interceptors.response.use(
 
         // Handle other errors
         if (!error.config?._skipErrorToast) {
-            const message = error.response?.data?.message || 'An error occurred';
-            toast.error(message);
+            const errorMsg = error.response?.data?.message || error.message || 'An error occurred';
+            console.error('API Error:', error.response?.status, errorMsg);
+            if (errorMsg !== 'undefined') {
+                toast.error(errorMsg);
+            }
         }
 
         return Promise.reject(error);

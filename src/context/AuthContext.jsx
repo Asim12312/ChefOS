@@ -28,16 +28,36 @@ export const AuthProvider = ({ children }) => {
     const login = async (email, password) => {
         try {
             const response = await api.post('/auth/login', { email, password });
+            
+            // Safety checks for valid response
+            if (!response || !response.data) {
+                throw new Error('Invalid response from server. Please check your backend.');
+            }
+            
+            if (!response.data.data) {
+                console.error('API Response:', response.data);
+                throw new Error('Server returned invalid data structure');
+            }
+            
             const { user, token, refreshToken } = response.data.data;
+            
+            if (!user || !token) {
+                throw new Error('Missing user or token in response');
+            }
 
             localStorage.setItem('token', token);
-            localStorage.setItem('refreshToken', refreshToken);
+            if (refreshToken) {
+                localStorage.setItem('refreshToken', refreshToken);
+            }
             localStorage.setItem('user', JSON.stringify(user));
 
             setUser(user);
             toast.success('Login successful!');
             return user;
         } catch (error) {
+            const errorMsg = error.response?.data?.message || error.message || 'Login failed';
+            console.error('Login error:', errorMsg);
+            toast.error(errorMsg);
             throw error;
         }
     };
@@ -50,16 +70,36 @@ export const AuthProvider = ({ children }) => {
                 password,
                 role,
             });
+            
+            // Safety checks for valid response
+            if (!response || !response.data) {
+                throw new Error('Invalid response from server. Please check your backend.');
+            }
+            
+            if (!response.data.data) {
+                console.error('API Response:', response.data);
+                throw new Error('Server returned invalid data structure');
+            }
+            
             const { user, token, refreshToken } = response.data.data;
+            
+            if (!user || !token) {
+                throw new Error('Missing user or token in response');
+            }
 
             localStorage.setItem('token', token);
-            localStorage.setItem('refreshToken', refreshToken);
+            if (refreshToken) {
+                localStorage.setItem('refreshToken', refreshToken);
+            }
             localStorage.setItem('user', JSON.stringify(user));
 
             setUser(user);
             toast.success('Registration successful!');
             return user;
         } catch (error) {
+            const errorMsg = error.response?.data?.message || error.message || 'Registration failed';
+            console.error('Register error:', errorMsg);
+            toast.error(errorMsg);
             throw error;
         }
     };
