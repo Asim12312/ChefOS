@@ -53,13 +53,16 @@ const httpServer = createServer(app);
 const io = new Server(httpServer, {
     cors: {
         origin: (origin, callback) => {
-            const allowedOrigins = process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : [];
+            const allowedOrigins = process.env.ALLOWED_ORIGINS
+                ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
+                : [];
             // Allow requests with no origin (like mobile apps or curl requests)
             if (!origin) return callback(null, true);
 
             if (process.env.NODE_ENV === 'development' || allowedOrigins.indexOf(origin) !== -1 || allowedOrigins.includes('*')) {
                 callback(null, true);
             } else {
+                logger.warn(`CORS Blocked: Origin ${origin} not allowed. Allowed: ${allowedOrigins.join(', ')}`);
                 callback(new Error('Not allowed by CORS'));
             }
         },
@@ -75,13 +78,17 @@ app.set('io', io);
 app.use(helmet()); // Security headers
 app.use(cors({
     origin: (origin, callback) => {
-        const allowedOrigins = process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : [];
+        const allowedOrigins = process.env.ALLOWED_ORIGINS
+            ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
+            : [];
+
         // Allow requests with no origin (like mobile apps or curl requests)
         if (!origin) return callback(null, true);
 
         if (process.env.NODE_ENV === 'development' || allowedOrigins.indexOf(origin) !== -1 || allowedOrigins.includes('*')) {
             callback(null, true);
         } else {
+            logger.warn(`CORS Blocked (HTTP): Origin ${origin} not allowed.`);
             callback(new Error('Not allowed by CORS'));
         }
     },
