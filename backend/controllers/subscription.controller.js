@@ -1,5 +1,6 @@
 import { Environment, Paddle } from '@paddle/paddle-node-sdk';
 import Restaurant from '../models/Restaurant.js';
+import logger from '../utils/logger.js';
 
 const paddle = new Paddle(process.env.PADDLE_API_KEY, {
     environment: process.env.PADDLE_ENVIRONMENT === 'production' ? Environment.production : Environment.sandbox,
@@ -16,19 +17,21 @@ export const handlePaddleWebhook = async (req, res, next) => {
 
     try {
         if (!signature || !process.env.PADDLE_WEBHOOK_SECRET) {
+            logger.warn('Webhook Secret or Signature missing');
             return res.status(400).send('Webhook Secret or Signature missing');
         }
 
         const authenticated = paddle.webhooks.unmarshal(rawBody, process.env.PADDLE_WEBHOOK_SECRET, signature);
 
         if (!authenticated) {
+            logger.warn('Invalid webhook signature');
             return res.status(401).send('Invalid signature');
         }
 
         const eventData = authenticated.data;
         const eventType = authenticated.eventType;
 
-        console.log(`Paddle Webhook Received: ${eventType}`);
+        logger.info(`Paddle Webhook Received: ${eventType}`);
 
         switch (eventType) {
             case 'subscription.created':
@@ -42,6 +45,7 @@ export const handlePaddleWebhook = async (req, res, next) => {
                         'subscription.paddleCustomerId': eventData.customerId,
                         'subscription.premiumUntil': eventData.nextBilledAt || null
                     });
+                    logger.info(`Subscription updated for restaurant ${restaurantId}`);
                 }
                 break;
             }
@@ -54,17 +58,18 @@ export const handlePaddleWebhook = async (req, res, next) => {
                         'subscription.status': 'canceled',
                         'subscription.premiumUntil': null
                     });
+                    logger.info(`Subscription canceled for restaurant ${restaurantId}`);
                 }
                 break;
             }
 
             default:
-                console.log(`Unhandled event type: ${eventType}`);
+                logger.warn(`Unhandled event type: ${eventType}`);
         }
 
         res.status(200).send('OK');
     } catch (error) {
-        console.error('Paddle Webhook Error:', error);
+        logger.error(`Paddle Webhook Error: ${error.message}`);
         res.status(500).send('Webhook Internal Error');
     }
 };

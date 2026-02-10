@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X, QrCode } from "lucide-react";
 import { Link } from "react-router-dom";
 import Logo from "../common/Logo";
+import ThemeToggle from "../common/ThemeToggle";
 
 const navLinks = [
     { name: "Features", href: "#features" },
@@ -59,6 +60,7 @@ export const Navbar = () => {
 
                         {/* CTA Buttons */}
                         <div className="hidden md:flex items-center gap-4">
+                            <ThemeToggle className="mr-2" />
                             <Link to="/login" className="font-medium text-muted-foreground hover:text-foreground transition-colors">
                                 Sign In
                             </Link>
@@ -120,6 +122,10 @@ export const Navbar = () => {
                                     </motion.a>
                                 ))}
                                 <div className="flex flex-col gap-3 pt-4">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <span className="text-sm font-medium text-muted-foreground">Appearance</span>
+                                        <ThemeToggle />
+                                    </div>
                                     <Link to="/login" className="px-6 py-2 text-center border border-border rounded-xl hover:bg-muted transition-colors" onClick={() => setIsMobileMenuOpen(false)}>
                                         Sign In
                                     </Link>

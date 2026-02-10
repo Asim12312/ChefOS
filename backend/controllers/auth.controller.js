@@ -1,6 +1,8 @@
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
 import crypto from 'crypto';
+import logger from '../utils/logger.js';
+import { sendPasswordResetOTP } from '../services/email.service.js';
 
 // Generate JWT token
 const generateToken = (id) => {
@@ -26,6 +28,7 @@ export const register = async (req, res, next) => {
         // Check if user already exists
         const userExists = await User.findOne({ email });
         if (userExists) {
+            logger.warn(`Registration failed: Email already exists - ${email}`);
             return res.status(400).json({
                 success: false,
                 message: 'User already exists with this email'
@@ -48,6 +51,8 @@ export const register = async (req, res, next) => {
         user.refreshToken = refreshToken;
         await user.save();
 
+        logger.info(`New user registered: ${user.email} (${user.role})`);
+
         res.status(201).json({
             success: true,
             message: 'User registered successfully',
@@ -63,6 +68,7 @@ export const register = async (req, res, next) => {
             }
         });
     } catch (error) {
+        logger.error(`Registration error: ${error.message}`);
         next(error);
     }
 };
@@ -85,6 +91,7 @@ export const login = async (req, res, next) => {
         // Check for user (include password for comparison)
         const user = await User.findOne({ email }).select('+password');
         if (!user) {
+            logger.warn(`Login failed: Invalid email - ${email}`);
             return res.status(401).json({
                 success: false,
                 message: 'Invalid credentials'
@@ -93,6 +100,7 @@ export const login = async (req, res, next) => {
 
         // Check if user is active
         if (!user.isActive) {
+            logger.warn(`Login failed: Inactive account - ${email}`);
             return res.status(401).json({
                 success: false,
                 message: 'Account is deactivated'
@@ -102,6 +110,7 @@ export const login = async (req, res, next) => {
         // Check password
         const isMatch = await user.comparePassword(password);
         if (!isMatch) {
+            logger.warn(`Login failed: Invalid password - ${email}`);
             return res.status(401).json({
                 success: false,
                 message: 'Invalid credentials'
@@ -119,6 +128,8 @@ export const login = async (req, res, next) => {
         user.refreshToken = refreshToken;
         await user.save();
 
+        logger.info(`User logged in: ${user.email}`);
+
         res.status(200).json({
             success: true,
             message: 'Login successful',
@@ -129,6 +140,7 @@ export const login = async (req, res, next) => {
             }
         });
     } catch (error) {
+        logger.error(`Login error: ${error.message}`);
         next(error);
     }
 };
@@ -153,6 +165,7 @@ export const refreshToken = async (req, res, next) => {
         // Get user and verify refresh token
         const user = await User.findById(decoded.id).select('+refreshToken');
         if (!user || user.refreshToken !== refreshToken) {
+            logger.warn(`RefreshToken failed: Invalid token for user ID ${decoded.id}`);
             return res.status(401).json({
                 success: false,
                 message: 'Invalid refresh token'
@@ -175,6 +188,7 @@ export const refreshToken = async (req, res, next) => {
             }
         });
     } catch (error) {
+        logger.error(`RefreshToken error: ${error.message}`);
         return res.status(401).json({
             success: false,
             message: 'Invalid or expired refresh token'
@@ -191,11 +205,14 @@ export const logout = async (req, res, next) => {
         req.user.refreshToken = null;
         await req.user.save();
 
+        logger.info(`User logged out: ${req.user.email}`);
+
         res.status(200).json({
             success: true,
             message: 'Logged out successfully'
         });
     } catch (error) {
+        logger.error(`Logout error: ${error.message}`);
         next(error);
     }
 };
@@ -212,6 +229,7 @@ export const getMe = async (req, res, next) => {
             data: user
         });
     } catch (error) {
+        logger.error(`GetMe error: ${error.message}`);
         next(error);
     }
 };
@@ -227,6 +245,7 @@ export const forgotPassword = async (req, res, next) => {
         const user = await User.findOne({ email });
         if (!user) {
             // For security, don't reveal if user exists
+            logger.info(`Password reset requested for non-existent email: ${email}`);
             return res.status(200).json({
                 success: true,
                 message: 'If an account exists with this email, you will receive a password reset OTP'
@@ -239,8 +258,9 @@ export const forgotPassword = async (req, res, next) => {
 
         // Send email
         try {
-            const { sendPasswordResetOTP } = await import('../services/email.service.js');
             await sendPasswordResetOTP(user.email, otp, user.name);
+
+            logger.info(`Password reset OTP sent to: ${user.email}`);
 
             res.status(200).json({
                 success: true,
@@ -250,6 +270,8 @@ export const forgotPassword = async (req, res, next) => {
                 }
             });
         } catch (emailError) {
+            logger.error(`Failed to send password reset email to ${user.email}: ${emailError.message}`);
+
             // Reset fields if email fails
             user.passwordResetToken = undefined;
             user.passwordResetExpires = undefined;
@@ -261,6 +283,7 @@ export const forgotPassword = async (req, res, next) => {
             });
         }
     } catch (error) {
+        logger.error(`ForgotPassword error: ${error.message}`);
         next(error);
     }
 };
@@ -283,6 +306,7 @@ export const verifyOTP = async (req, res, next) => {
         }).select('+passwordResetToken +passwordResetExpires');
 
         if (!user) {
+            logger.warn(`OTP verification failed for ${email}`);
             return res.status(400).json({
                 success: false,
                 message: 'Invalid or expired OTP'
@@ -294,6 +318,7 @@ export const verifyOTP = async (req, res, next) => {
             message: 'OTP verified successfully. You can now reset your password.'
         });
     } catch (error) {
+        logger.error(`VerifyOTP error: ${error.message}`);
         next(error);
     }
 };
@@ -316,6 +341,7 @@ export const resetPassword = async (req, res, next) => {
         }).select('+passwordResetToken +passwordResetExpires +refreshToken');
 
         if (!user) {
+            logger.warn(`Password reset failed: Invalid OTP for ${email}`);
             return res.status(400).json({
                 success: false,
                 message: 'Invalid or expired OTP'
@@ -330,11 +356,14 @@ export const resetPassword = async (req, res, next) => {
 
         await user.save();
 
+        logger.info(`Password successfully reset for: ${user.email}`);
+
         res.status(200).json({
             success: true,
             message: 'Password reset successful. Please login with your new password.'
         });
     } catch (error) {
+        logger.error(`ResetPassword error: ${error.message}`);
         next(error);
     }
 };

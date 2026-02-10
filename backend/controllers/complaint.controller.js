@@ -1,4 +1,5 @@
 import Complaint from '../models/Complaint.js';
+import logger from '../utils/logger.js';
 
 // @desc    Create complaint
 // @route   POST /api/complaints
@@ -65,7 +66,7 @@ export const getComplaints = async (req, res, next) => {
             data: complaints
         });
     } catch (error) {
-        console.error('Error in getComplaints:', error);
+        logger.error(`Error in getComplaints: ${error.message}`);
         next(error);
     }
 };

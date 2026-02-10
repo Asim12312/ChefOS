@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { UserPlus, ArrowRight, Store, ChefHat, Check, X, CheckCircle2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Logo from "../../components/common/Logo";
+import ThemeToggle from '../../components/common/ThemeToggle';
 
 const Register = () => {
     const [formData, setFormData] = useState({
@@ -147,9 +148,12 @@ const Register = () => {
                         <Logo className="w-auto h-12" />
                     </div>
 
-                    <div className="text-center lg:text-left mb-8">
-                        <h2 className="font-display text-3xl font-bold mb-2">Create Account</h2>
-                        <p className="text-muted-foreground">Join 89+ restaurants growing with ChefOS.</p>
+                    <div className="flex justify-between items-center mb-8">
+                        <div className="text-left">
+                            <h2 className="font-display text-3xl font-bold mb-2">Create Account</h2>
+                            <p className="text-muted-foreground">Join 89+ restaurants growing with ChefOS.</p>
+                        </div>
+                        <ThemeToggle className="theme-toggle-container" />
                     </div>
 
                     <form onSubmit={handleSubmit} className="space-y-6">

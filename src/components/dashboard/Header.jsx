@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Bell, Search, Menu, Moon, Sun, Laptop, Sparkles } from 'lucide-react';
+import { Bell, Menu, Moon, Sun, Laptop, Sparkles } from 'lucide-react';
 import api from '../../config/api';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -8,7 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 const Header = ({ onMobileMenuClick }) => {
     const { user } = useAuth();
     const { theme, setTheme } = useTheme();
-    const [searchFocused, setSearchFocused] = useState(false);
+
     const [notifications, setNotifications] = useState([]);
     const [showNotifications, setShowNotifications] = useState(false);
     const [lastReadTime, setLastReadTime] = useState(() => {
@@ -70,25 +70,14 @@ const Header = ({ onMobileMenuClick }) => {
 
     return (
         <header className="h-20 flex items-center justify-between px-6 lg:px-8 border-b border-border/40 bg-background/80 backdrop-blur-xl sticky top-0 z-40 transition-colors duration-300">
-            {/* Mobile Menu & Search */}
-            <div className="flex items-center gap-4 flex-1">
+            {/* Mobile Menu */}
+            <div className="flex items-center gap-4">
                 <button
                     onClick={onMobileMenuClick}
                     className="lg:hidden p-2 text-muted-foreground hover:text-foreground transition-colors"
                 >
                     <Menu size={24} />
                 </button>
-
-                <div className={`relative max-w-md w-full transition-all duration-300 ${searchFocused ? 'scale-105' : 'scale-100'}`}>
-                    <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 transition-colors ${searchFocused ? 'text-primary' : 'text-muted-foreground'}`} />
-                    <input
-                        type="text"
-                        placeholder="Search orders, dishes, or customers..."
-                        className="w-full pl-10 pr-4 py-2.5 rounded-full bg-muted/50 border border-border/50 text-sm focus:bg-background focus:border-primary/50 focus:ring-2 focus:ring-primary/20 transition-all outline-none text-foreground placeholder:text-muted-foreground/70"
-                        onFocus={() => setSearchFocused(true)}
-                        onBlur={() => setSearchFocused(false)}
-                    />
-                </div>
             </div>
 
             {/* Actions & Profile */}

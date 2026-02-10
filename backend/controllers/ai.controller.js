@@ -1,6 +1,7 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import MenuItem from '../models/MenuItem.js';
 import Restaurant from '../models/Restaurant.js';
+import logger from '../utils/logger.js';
 
 // Initialize Gemini Lazily
 let genAI;
@@ -13,17 +14,17 @@ let genAI;
 export const chatWithChef = async (req, res, next) => {
     try {
         if (!process.env.GEMINI_API_KEY) {
-            console.error('GEMINI_API_KEY missing from environment variables');
+            logger.error('GEMINI_API_KEY missing from environment variables');
             throw new Error('GEMINI_API_KEY is not defined in environment variables');
         }
 
         if (!genAI) {
-            console.log('Initializing Gemini with key:', process.env.GEMINI_API_KEY.substring(0, 5) + '...');
+            logger.info('Initializing Gemini AI...');
             genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
         }
 
         const { message, history, restaurantId } = req.body;
-        console.log(`Chef AI Request - Restaurant: ${restaurantId}, Message: "${message}"`);
+        logger.info(`Chef AI Request - Restaurant: ${restaurantId}`);
 
         if (!message) {
             return res.status(400).json({
@@ -89,14 +90,14 @@ Customer's current message: "${message}"
 
         const result = await model.generateContent(systemPrompt);
         const responseText = result.response.text();
-        console.log('Chef AI Response generated successfully');
+        logger.info('Chef AI Response generated successfully');
 
         res.status(200).json({
             success: true,
             data: responseText
         });
     } catch (error) {
-        console.error('Chef AI Error Detailed:', error);
+        logger.error(`Chef AI Error: ${error.message}`);
 
         // Return a more descriptive error in development to help debugging
         const errorMessage = error.message || 'An error occurred while communicating with Chef AI';

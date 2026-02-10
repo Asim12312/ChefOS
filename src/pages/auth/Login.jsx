@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { LogIn, ArrowRight, CheckCircle2, Star, QrCode } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Logo from '../../components/common/Logo';
+import ThemeToggle from '../../components/common/ThemeToggle';
 
 const Login = () => {
     const [email, setEmail] = useState('');
@@ -137,9 +138,12 @@ const Login = () => {
                         <Logo className="w-auto h-12" />
                     </div>
 
-                    <div className="text-center lg:text-left mb-8">
-                        <h2 className="font-display text-3xl font-bold mb-2">Welcome Back</h2>
-                        <p className="text-muted-foreground">Join 89+ restaurants growing with ChefOS.</p>
+                    <div className="flex justify-between items-center mb-8">
+                        <div className="text-left">
+                            <h2 className="font-display text-3xl font-bold mb-2">Welcome Back</h2>
+                            <p className="text-muted-foreground">Join 89+ restaurants growing with ChefOS.</p>
+                        </div>
+                        <ThemeToggle className="theme-toggle-container" />
                     </div>
 
                     <form onSubmit={handleSubmit} className="space-y-5">
