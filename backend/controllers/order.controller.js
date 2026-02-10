@@ -2,6 +2,7 @@ import Order from '../models/Order.js';
 import MenuItem from '../models/MenuItem.js';
 import Restaurant from '../models/Restaurant.js';
 import Table from '../models/Table.js';
+import logger from '../utils/logger.js';
 
 // @desc    Create order
 // @route   POST /api/orders
@@ -29,6 +30,7 @@ export const createOrder = async (req, res, next) => {
 
         // Security Validation (Scan-to-Order)
         if (tableDoc.currentSession?.securityToken && tableDoc.currentSession.securityToken !== securityToken) {
+            logger.warn(`Security token mismatch for table ${table}. Possible unauthorized order attempt.`);
             return res.status(403).json({
                 success: false,
                 message: 'Security validation failed. Please re-scan table QR code to order.'
@@ -92,9 +94,6 @@ export const createOrder = async (req, res, next) => {
 
         const total = Math.max(0, subtotal + tax + Number(tipAmount) - discountAmount);
 
-        // Create order
-        // tableDoc already fetched above for security validation
-
         // Session logic: Reuse existing sessionId if table is occupied, else generate new one
         let sessionId = tableDoc.currentSession?.sessionId;
         if (!sessionId || tableDoc.status === 'FREE') {
@@ -139,7 +138,7 @@ export const createOrder = async (req, res, next) => {
                 io.to(`restaurant:${restaurant}`).emit('table:updated', tableDoc);
             }
         } catch (tableError) {
-            console.error('Failed to update table status:', tableError);
+            logger.error(`Failed to update table status: ${tableError.message}`);
         }
 
         // Emit real-time events via Socket.IO
@@ -148,8 +147,9 @@ export const createOrder = async (req, res, next) => {
                 order,
                 message: `New order #${order.orderNumber} from ${order.table?.name || 'Table'}`
             });
-
         }
+
+        logger.info(`Order created: #${order.orderNumber} for Table ${order.table?.name}`);
 
         res.status(201).json({
             success: true,
@@ -157,7 +157,7 @@ export const createOrder = async (req, res, next) => {
             data: order
         });
     } catch (error) {
-        console.error('Create Order Error:', error);
+        logger.error(`Create Order Error: ${error.message}`);
         next(error);
     }
 };
@@ -362,12 +362,15 @@ export const updateOrderStatus = async (req, res, next) => {
 
         io.to(`order:${order._id}`).emit('order:updated', order);
 
+        logger.info(`Order status updated: #${order.orderNumber} -> ${status}`);
+
         res.status(200).json({
             success: true,
             message: `Order status updated to ${status}`,
             data: order
         });
     } catch (error) {
+        logger.error(`Update Order Status Error: ${error.message}`);
         next(error);
     }
 };
@@ -415,6 +418,8 @@ export const cancelOrder = async (req, res, next) => {
             orderId: order._id,
             orderNumber: order.orderNumber
         });
+
+        logger.info(`Order cancelled: #${order.orderNumber}`);
 
         res.status(200).json({
             success: true,
@@ -509,7 +514,7 @@ export const updateOrderPayment = async (req, res, next) => {
                     io.to(`restaurant:${order.restaurant}`).emit('table:updated', tableDoc);
                 }
             } catch (tableError) {
-                console.error('Failed to free table:', tableError);
+                logger.error(`Failed to free table: ${tableError.message}`);
             }
         }
 
@@ -519,6 +524,8 @@ export const updateOrderPayment = async (req, res, next) => {
             orderId: order._id,
             paymentStatus: order.paymentStatus
         });
+
+        logger.info(`Order payment updated: #${order.orderNumber} -> ${order.paymentStatus}`);
 
         res.status(200).json({
             success: true,

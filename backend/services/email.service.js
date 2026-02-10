@@ -1,4 +1,5 @@
 import nodemailer from 'nodemailer';
+import logger from '../utils/logger.js';
 
 // Create transporter
 const createTransporter = () => {
@@ -72,18 +73,16 @@ export const sendPasswordResetOTP = async (email, otp, userName) => {
         };
 
         const info = await transporter.sendMail(mailOptions);
-        console.log('Password reset email sent:', info.messageId);
+        logger.info(`Password reset email sent: ${info.messageId}`);
         return { success: true, messageId: info.messageId };
     } catch (error) {
-        console.error('Email sending error:', error);
+        logger.error(`Email sending error: ${error.message}`);
 
         // Development fallback: Log OTP to console if email fails
         if (process.env.NODE_ENV === 'development') {
-            console.log('\n========================================================');
-            console.log('⚠️  EMAIL FAILED (Using Dev Fallback)');
-            console.log(`📧 To: ${email}`);
-            console.log(`🔑 OTP: ${otp}`);
-            console.log('========================================================\n');
+            logger.warn('⚠️  EMAIL FAILED (Using Dev Fallback)');
+            logger.warn(`📧 To: ${email}`);
+            logger.warn(`🔑 OTP: ${otp}`);
             return { success: true, messageId: 'dev-fallback' };
         }
 
@@ -131,7 +130,7 @@ export const sendWelcomeEmail = async (email, userName) => {
 
         await transporter.sendMail(mailOptions);
     } catch (error) {
-        console.error('Welcome email error:', error);
+        logger.error(`Welcome email error: ${error.message}`);
         // Don't throw - welcome email failure shouldn't block registration
     }
 };

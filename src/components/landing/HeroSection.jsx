@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 
 export const HeroSection = () => {
     return (
-        <section className="relative min-h-[80vh] sm:min-h-[75vh] lg:min-h-[70vh] flex items-center justify-center overflow-hidden pt-12 sm:pt-16 md:pt-20 lg:pt-8">
+        <section className="relative min-h-[80vh] sm:min-h-[75vh] lg:min-h-[70vh] flex items-center justify-center overflow-hidden pt-12 sm:pt-16 md:pt-20 lg:pt-16">
             {/* Background Elements */}
             <div className="absolute inset-0 pointer-events-none">
                 {/* Gradient Orbs */}
@@ -121,14 +121,14 @@ export const HeroSection = () => {
                         initial={{ opacity: 0, x: 50 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ duration: 0.8, delay: 0.3 }}
-                        className="relative hidden lg:block"
+                        className="relative hidden lg:block lg:mt-4"
                     >
                         <div className="relative mx-auto max-w-[300px]">
                             {/* Floating Elements */}
                             <motion.div
                                 animate={{ y: [-10, 10, -10] }}
                                 transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-                                className="absolute -top-6 lg:-top-8 -left-6 lg:-left-8 glass-card p-3 lg:p-4 shadow-lg z-10 scale-90 lg:scale-100"
+                                className="absolute top-0 lg:top-0 -left-6 lg:-left-8 glass-card p-3 lg:p-4 shadow-lg z-10 scale-90 lg:scale-100"
                             >
                                 <div className="flex items-center gap-3">
                                     <div className="w-10 h-10 rounded-full bg-success/20 flex items-center justify-center">

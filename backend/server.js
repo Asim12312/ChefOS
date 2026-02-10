@@ -34,15 +34,16 @@ import subscriptionRoutes from './routes/subscription.routes.js';
 import staffRoutes from './routes/staff.routes.js';
 
 // Load environment variables
-console.log('Starting server...');
+// Load environment variables
+logger.info('Starting server...');
 dotenv.config();
-console.log('Environment variables reloaded. Email User:', process.env.EMAIL_USER ? 'Set' : 'Not Set');
-console.log('Env loaded, Connecting to DB...');
+logger.info(`Environment variables reloaded. Email User: ${process.env.EMAIL_USER ? 'Set' : 'Not Set'}`);
+logger.info('Env loaded, Connecting to DB...');
 
 // Connect to database
 connectDB();
 connectRedis();
-console.log('Initialization sequence triggered...');
+logger.info('Initialization sequence triggered...');
 
 // Initialize Express app
 const app = express();
@@ -52,10 +53,17 @@ const httpServer = createServer(app);
 const io = new Server(httpServer, {
     cors: {
         origin: (origin, callback) => {
-            // Allow all origins in development for mobile testing
-            callback(null, true);
+            const allowedOrigins = process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : [];
+            // Allow requests with no origin (like mobile apps or curl requests)
+            if (!origin) return callback(null, true);
+
+            if (process.env.NODE_ENV === 'development' || allowedOrigins.indexOf(origin) !== -1 || allowedOrigins.includes('*')) {
+                callback(null, true);
+            } else {
+                callback(new Error('Not allowed by CORS'));
+            }
         },
-        methods: ['GET', 'POST'],
+        methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
         credentials: true
     }
 });
@@ -67,8 +75,15 @@ app.set('io', io);
 app.use(helmet()); // Security headers
 app.use(cors({
     origin: (origin, callback) => {
-        // Allow all origins in development for mobile testing
-        callback(null, true);
+        const allowedOrigins = process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : [];
+        // Allow requests with no origin (like mobile apps or curl requests)
+        if (!origin) return callback(null, true);
+
+        if (process.env.NODE_ENV === 'development' || allowedOrigins.indexOf(origin) !== -1 || allowedOrigins.includes('*')) {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
     },
     credentials: true
 }));

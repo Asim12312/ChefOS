@@ -1,0 +1,12 @@
+node_modules
+npm-debug.log
+logs
+.env
+.git
+.gitignore
+Dockerfile
+README.md
+API_DOCS.md
+MONGODB_SETUP.md
+scripts/
+tests/

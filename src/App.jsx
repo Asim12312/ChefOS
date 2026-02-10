@@ -11,9 +11,17 @@ import { useAuth } from './context/AuthContext';
 // --- Professional Page Loader ---
 const PageLoader = () => (
   <div className="flex h-screen w-full items-center justify-center bg-background">
-    <div className="flex flex-col items-center gap-4">
-      <div className="h-12 w-12 animate-spin rounded-full border-4 border-primary border-t-transparent shadow-lg" />
-      <p className="animate-pulse text-sm font-medium text-muted-foreground tracking-widest uppercase">Initializing...</p>
+    <div className="flex flex-col items-center gap-6">
+      <div className="relative">
+        <div className="h-16 w-16 animate-spin rounded-full border-4 border-primary/30 border-t-primary shadow-2xl" />
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
+        </div>
+      </div>
+      <div className="flex flex-col items-center gap-1">
+        <p className="animate-pulse text-sm font-semibold text-foreground tracking-[0.2em] uppercase">ChefOS</p>
+        <p className="text-xs text-muted-foreground/80">System Initializing...</p>
+      </div>
     </div>
   </div>
 );

@@ -1,4 +1,5 @@
 import nodemailer from 'nodemailer';
+import logger from '../utils/logger.js';
 
 // Send contact sales email
 export const sendContactEmail = async (req, res) => {
@@ -110,14 +111,8 @@ export const sendContactEmail = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('------- CONTACT EMAIL ERROR DETAILS -------');
-        console.error('Error Code:', error.code);
-        console.error('Error Message:', error.message);
-        console.error('Response:', error.response);
-        console.error('Stack:', error.stack);
-        console.error('EMAIL_USER Env Var:', process.env.EMAIL_USER ? 'Set' : 'Missing');
-        console.error('EMAIL_PASSWORD Env Var:', process.env.EMAIL_PASSWORD ? 'Set' : 'Missing');
-        console.error('-------------------------------------------');
+        logger.error(`Contact Email Error: ${error.message}`);
+        logger.error(`Stack: ${error.stack}`);
 
         res.status(500).json({
             success: false,
