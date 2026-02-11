@@ -1,4 +1,5 @@
 import MenuItem from '../models/MenuItem.js';
+import cache from '../utils/cache.js';
 
 // @desc    Create menu item
 // @route   POST /api/menu
@@ -19,6 +20,9 @@ export const createMenuItem = async (req, res, next) => {
         }
 
         const menuItem = await MenuItem.create(req.body);
+
+        // Invalidate menu cache for this restaurant
+        await cache.invalidatePattern(`menu:${restaurant}*`);
 
         res.status(201).json({
             success: true,
@@ -44,6 +48,19 @@ export const getMenuItems = async (req, res, next) => {
             });
         }
 
+        // Try cache first (15 minute TTL for menu data)
+        const cacheKey = cache.keys.menu(restaurant);
+        const cached = await cache.get(cacheKey);
+
+        if (cached) {
+            return res.status(200).json({
+                success: true,
+                count: cached.length,
+                data: cached,
+                cached: true
+            });
+        }
+
         const query = { restaurant, isDeleted: false };
 
         if (category) {
@@ -55,6 +72,9 @@ export const getMenuItems = async (req, res, next) => {
         }
 
         const menuItems = await MenuItem.find(query).sort({ category: 1, name: 1 });
+
+        // Cache for 15 minutes
+        await cache.set(cacheKey, menuItems, 900);
 
         res.status(200).json({
             success: true,
@@ -114,6 +134,9 @@ export const updateMenuItem = async (req, res, next) => {
         Object.assign(menuItem, req.body);
         await menuItem.save();
 
+        // Invalidate menu cache
+        await cache.invalidatePattern(`menu:${menuItem.restaurant}*`);
+
         res.status(200).json({
             success: true,
             message: 'Menu item updated successfully',
@@ -149,6 +172,9 @@ export const toggleAvailability = async (req, res, next) => {
         menuItem.isAvailable = !menuItem.isAvailable;
         await menuItem.save();
 
+        // Invalidate menu cache
+        await cache.invalidatePattern(`menu:${menuItem.restaurant}*`);
+
         res.status(200).json({
             success: true,
             message: `Menu item ${menuItem.isAvailable ? 'enabled' : 'disabled'}`,
@@ -183,6 +209,9 @@ export const deleteMenuItem = async (req, res, next) => {
 
         menuItem.isDeleted = true;
         await menuItem.save();
+
+        // Invalidate menu cache
+        await cache.invalidatePattern(`menu:${menuItem.restaurant}*`);
 
         res.status(200).json({
             success: true,

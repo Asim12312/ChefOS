@@ -11,6 +11,7 @@ import { connectRedis } from './config/redis.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { rateLimiter } from './middleware/rateLimiter.js';
 import logger from './utils/logger.js';
+import { validateEnvironment } from './utils/validateEnv.js';
 
 // Import routes
 import authRoutes from './routes/auth.routes.js';
@@ -38,6 +39,10 @@ import staffRoutes from './routes/staff.routes.js';
 logger.info('Starting server...');
 dotenv.config();
 logger.info(`Environment variables reloaded. Email User: ${process.env.EMAIL_USER ? 'Set' : 'Not Set'}`);
+
+// Validate environment variables
+validateEnvironment();
+
 logger.info('Env loaded, Connecting to DB...');
 
 // Connect to database

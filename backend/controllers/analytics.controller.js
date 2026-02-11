@@ -4,6 +4,7 @@ import Payment from '../models/Payment.js';
 import Table from '../models/Table.js';
 import Complaint from '../models/Complaint.js';
 import mongoose from 'mongoose';
+import cache from '../utils/cache.js';
 
 // ... (other exports remain unchanged)
 
@@ -16,6 +17,19 @@ export const getDashboardSummary = async (req, res, next) => {
         if (!mongoose.Types.ObjectId.isValid(restaurantId)) {
             return res.status(400).json({ success: false, message: 'Invalid restaurant ID' });
         }
+
+        // Try cache first (5 minute TTL for analytics - balances freshness with performance)
+        const cacheKey = cache.keys.analytics(restaurantId, 'dashboard');
+        const cached = await cache.get(cacheKey);
+
+        if (cached) {
+            return res.status(200).json({
+                success: true,
+                data: cached,
+                cached: true
+            });
+        }
+
         const restaurantObjectId = new mongoose.Types.ObjectId(restaurantId);
 
         const today = new Date();
@@ -195,6 +209,9 @@ export const getDashboardSummary = async (req, res, next) => {
             },
             recentActivity
         };
+
+        // Cache for 5 minutes
+        await cache.set(cacheKey, dashboardData, 300);
 
         res.status(200).json({
             success: true,
