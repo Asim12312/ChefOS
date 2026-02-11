@@ -14,7 +14,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
+      includeAssets: ['chefos-logo.svg', 'robots.txt'],
       manifest: {
         name: 'ChefOS - Smart Restaurant Management',
         short_name: 'ChefOS',
@@ -22,14 +22,16 @@ export default defineConfig({
         theme_color: '#ca8a04',
         icons: [
           {
-            src: 'logo-v2.png',
+            src: 'chefos-logo.svg',
             sizes: '192x192',
-            type: 'image/png'
+            type: 'image/svg+xml',
+            purpose: 'any'
           },
           {
-            src: 'logo-v2.png',
+            src: 'chefos-logo.svg',
             sizes: '512x512',
-            type: 'image/png'
+            type: 'image/svg+xml',
+            purpose: 'maskable'
           }
         ]
       },
