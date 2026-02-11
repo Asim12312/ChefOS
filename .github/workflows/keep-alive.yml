@@ -13,5 +13,5 @@ jobs:
       - name: Ping Backend Health Endpoint
         run: |
           # Replace with your actual backend URL
-          curl -I https://chefos-backend.onrender.com/health
+          curl -I https://api.chefos.pro/health
           echo "Ping sent to keep server awake"
