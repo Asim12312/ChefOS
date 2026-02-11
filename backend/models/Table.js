@@ -48,6 +48,8 @@ const tableSchema = new mongoose.Schema({
 
 // Compound index for restaurant and table name uniqueness
 tableSchema.index({ restaurant: 1, name: 1 }, { unique: true });
+// Index for filtering active tables
+tableSchema.index({ restaurant: 1, isActive: 1 });
 
 // Generate QR code data before saving
 tableSchema.pre('save', function (next) {

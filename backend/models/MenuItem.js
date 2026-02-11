@@ -96,6 +96,8 @@ const menuItemSchema = new mongoose.Schema({
 menuItemSchema.index({ restaurant: 1, category: 1 });
 menuItemSchema.index({ restaurant: 1, isAvailable: 1 });
 menuItemSchema.index({ isDeleted: 1 });
+// Compound index for optimal menu fetching (most common query)
+menuItemSchema.index({ restaurant: 1, isAvailable: 1, isDeleted: 1 });
 
 const MenuItem = mongoose.model('MenuItem', menuItemSchema);
 

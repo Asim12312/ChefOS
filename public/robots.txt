@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /dashboard/
+Disallow: /menu/*/manage
+Disallow: /api/
+
+Sitemap: https://chefos.pro/sitemap.xml

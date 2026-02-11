@@ -1,5 +1,6 @@
 import Restaurant from '../models/Restaurant.js';
 import User from '../models/User.js';
+import cache from '../utils/cache.js';
 
 // @desc    Create restaurant
 // @route   POST /api/restaurant
@@ -31,6 +32,18 @@ export const createRestaurant = async (req, res, next) => {
 // @access  Public
 export const getRestaurant = async (req, res, next) => {
     try {
+        // Try cache first (1 hour TTL for restaurant data)
+        const cacheKey = cache.keys.restaurant(req.params.id);
+        const cached = await cache.get(cacheKey);
+
+        if (cached) {
+            return res.status(200).json({
+                success: true,
+                data: cached,
+                cached: true
+            });
+        }
+
         const restaurant = await Restaurant.findById(req.params.id).populate('owner', 'name email');
 
         if (!restaurant) {
@@ -39,6 +52,9 @@ export const getRestaurant = async (req, res, next) => {
                 message: 'Restaurant not found'
             });
         }
+
+        // Cache for 1 hour
+        await cache.set(cacheKey, restaurant, 3600);
 
         res.status(200).json({
             success: true,
@@ -66,6 +82,9 @@ export const updateRestaurant = async (req, res, next) => {
         // Update fields
         Object.assign(restaurant, req.body);
         await restaurant.save();
+
+        // Invalidate restaurant cache
+        await cache.del(cache.keys.restaurant(req.params.id));
 
         res.status(200).json({
             success: true,
