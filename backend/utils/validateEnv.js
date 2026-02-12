@@ -4,9 +4,9 @@ import logger from './logger.js';
  * Validate critical environment variables on server startup
  */
 const requiredEnvVars = [
-    'MONGO_URI',
+    'MONGODB_URI',
     'JWT_SECRET',
-    'REFRESH_TOKEN_SECRET',
+    'JWT_REFRESH_SECRET',
     'NODE_ENV'
 ];
 
