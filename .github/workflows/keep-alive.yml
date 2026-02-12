@@ -2,8 +2,9 @@ name: Keep Backend Alive
 
 on:
   schedule:
-    # Run every 14 minutes (Render sleeps after 15 mins of inactivity)
-    - cron: '*/14 * * * *'
+    # GitHub schedule is unreliable and often delayed.
+    # We run every 5 minutes to ensure we hit the 15-minute Render sleep window.
+    - cron: '*/5 * * * *'
   workflow_dispatch: # Allow manual trigger
 
 jobs:
