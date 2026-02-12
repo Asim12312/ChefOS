@@ -14,7 +14,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['chefos-logo.svg', 'robots.txt'],
+      includeAssets: ['chefos-logo.svg', 'favicon.png', 'apple-touch-icon.png', 'og-image.svg', 'robots.txt'],
       manifest: {
         name: 'ChefOS - Smart Restaurant Management',
         short_name: 'ChefOS',
