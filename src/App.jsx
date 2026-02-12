@@ -7,6 +7,7 @@ import { CartProvider } from './context/CartContext';
 import { OfflineSyncProvider } from './context/OfflineSyncContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import { useAuth } from './context/AuthContext';
+import NetworkStatus from './components/common/NetworkStatus';
 
 // --- Professional Page Loader ---
 const PageLoader = () => (
