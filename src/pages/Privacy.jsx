@@ -19,7 +19,7 @@ const Privacy = () => {
 
                     <section>
                         <h2 className="text-xl font-semibold text-foreground mb-3">3. Payment Information</h2>
-                        <p>We do not store credit card details. All payment processing is handled securely by Paddle, our payment partner.</p>
+                        <p>We do not store credit card details. All payment processing is handled securely by our licensed payment partners.</p>
                     </section>
 
                     <section>

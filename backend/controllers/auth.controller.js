@@ -2,7 +2,7 @@ import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
 import crypto from 'crypto';
 import logger from '../utils/logger.js';
-import { sendPasswordResetOTP } from '../services/email.service.js';
+import { sendPasswordResetOTP, sendVerificationEmail, sendWelcomeEmail } from '../services/email.service.js';
 
 // Generate JWT token
 const generateToken = (id) => {
@@ -43,28 +43,32 @@ export const register = async (req, res, next) => {
             role: role || 'OWNER'
         });
 
-        // Generate tokens
-        const token = generateToken(user._id);
-        const refreshToken = generateRefreshToken(user._id);
+        // Generate verification token
+        const verificationToken = user.generateVerificationToken();
+        await user.save({ validateBeforeSave: false });
 
-        // Save refresh token
-        user.refreshToken = refreshToken;
-        await user.save();
+        // Send verification email
+        try {
+            await sendVerificationEmail(user.email, verificationToken, user.name);
+            logger.info(`Verification email sent to: ${user.email}`);
+        } catch (emailError) {
+            logger.error(`Failed to send verification email during registration to ${user.email}: ${emailError.message}`);
+            // Note: We don't fail registration if email fails, but user will need to resend
+        }
 
-        logger.info(`New user registered: ${user.email} (${user.role})`);
+        logger.info(`New user registered (verification pending): ${user.email} (${user.role})`);
 
         res.status(201).json({
             success: true,
-            message: 'User registered successfully',
+            message: 'Registration successful. Please check your email to verify your account.',
             data: {
                 user: {
                     id: user._id,
                     name: user.name,
                     email: user.email,
-                    role: user.role
-                },
-                token,
-                refreshToken
+                    role: user.role,
+                    emailVerified: false
+                }
             }
         });
     } catch (error) {
@@ -104,6 +108,16 @@ export const login = async (req, res, next) => {
             return res.status(401).json({
                 success: false,
                 message: 'Account is deactivated'
+            });
+        }
+
+        // Check if email is verified
+        if (!user.emailVerified) {
+            logger.warn(`Login failed: Email not verified - ${email}`);
+            return res.status(401).json({
+                success: false,
+                message: 'Your email is not verified. Please check your inbox or request a new verification link.',
+                notVerified: true
             });
         }
 
@@ -365,5 +379,148 @@ export const resetPassword = async (req, res, next) => {
     } catch (error) {
         logger.error(`ResetPassword error: ${error.message}`);
         next(error);
+    }
+};
+
+// @desc    Verify email
+// @route   POST /api/auth/verify-email
+// @access  Public
+export const verifyEmail = async (req, res, next) => {
+    try {
+        const { token } = req.body;
+
+        if (!token) {
+            return res.status(400).json({
+                success: false,
+                message: 'Verification token is required'
+            });
+        }
+
+        // Hash token to compare with stored version
+        const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+
+        // Find user with matching token and valid expiry
+        const user = await User.findOne({
+            verificationToken: hashedToken,
+            verificationExpires: { $gt: Date.now() }
+        }).select('+verificationToken +verificationExpires');
+
+        if (!user) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid or expired verification token'
+            });
+        }
+
+        // Mark as verified
+        user.emailVerified = true;
+        user.verificationToken = undefined;
+        user.verificationExpires = undefined;
+        await user.save({ validateBeforeSave: false });
+
+        logger.info(`Email verified for: ${user.email}`);
+
+        // Send welcome email
+        try {
+            await sendWelcomeEmail(user.email, user.name);
+        } catch (emailError) {
+            logger.error(`Failed to send welcome email to ${user.email}: ${emailError.message}`);
+        }
+
+        res.status(200).json({
+            success: true,
+            message: 'Email verified successfully! You can now login.'
+        });
+    } catch (error) {
+        logger.error(`VerifyEmail error: ${error.message}`);
+        next(error);
+    }
+};
+
+// @desc    Resend verification email
+// @route   POST /api/auth/resend-verification
+// @access  Public
+export const resendVerificationEmail = async (req, res, next) => {
+    try {
+        const { email } = req.body;
+
+        if (!email) {
+            return res.status(400).json({
+                success: false,
+                message: 'Email is required'
+            });
+        }
+
+        const user = await User.findOne({ email });
+
+        if (!user) {
+            // For security, don't reveal if user exists
+            return res.status(200).json({
+                success: true,
+                message: 'If an account exists with this email, a new verification link has been sent.'
+            });
+        }
+
+        if (user.emailVerified) {
+            return res.status(400).json({
+                success: false,
+                message: 'This email is already verified. Please login.'
+            });
+        }
+
+        // Generate new token
+        const verificationToken = user.generateVerificationToken();
+        await user.save({ validateBeforeSave: false });
+
+        // Send email
+        await sendVerificationEmail(user.email, verificationToken, user.name);
+        logger.info(`Verification email resent to: ${user.email}`);
+
+        res.status(200).json({
+            success: true,
+            message: 'A new verification link has been sent to your email.'
+        });
+    } catch (error) {
+        logger.error(`ResendVerificationEmail error: ${error.message}`);
+        next(error);
+    }
+};
+
+// @desc    Google auth callback handler
+// @route   GET /api/auth/google/callback
+// @access  Public
+export const googleAuthCallback = async (req, res) => {
+    try {
+        const user = req.user;
+        if (!user) {
+            return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:5173'}/login?error=auth_failed`);
+        }
+
+        // Generate tokens
+        const token = generateToken(user._id);
+        const refreshToken = generateRefreshToken(user._id);
+
+        // Save refresh token
+        user.refreshToken = refreshToken;
+        await user.save();
+
+        const userData = {
+            id: user._id,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+            avatar: user.avatar,
+            restaurant: user.restaurant
+        };
+
+        // Redirect to frontend with tokens
+        // Note: In production, it's safer to use a temporary code or secure cookie
+        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+        const redirectUrl = `${frontendUrl}/login?token=${token}&refreshToken=${refreshToken}&user=${encodeURIComponent(JSON.stringify(userData))}`;
+
+        res.redirect(redirectUrl);
+    } catch (error) {
+        logger.error(`Google Auth Callback Error: ${error.message}`);
+        res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:5173'}/login?error=server_error`);
     }
 };

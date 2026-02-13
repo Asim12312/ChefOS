@@ -19,7 +19,7 @@ const Terms = () => {
 
                     <section>
                         <h2 className="text-xl font-semibold text-foreground mb-3">3. Subscription and Billing</h2>
-                        <p>Our Premium plan is billed monthly at $25 USD (or local equivalent). Payments are processed securely via Paddle. You can cancel your subscription at any time.</p>
+                        <p>Our Premium plan is billed monthly at $25 USD (or local equivalent). Payments are processed securely via our billing partners or manual invoice. You can cancel your subscription at any time.</p>
                     </section>
 
                     <section>

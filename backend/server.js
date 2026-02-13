@@ -12,6 +12,8 @@ import { errorHandler } from './middleware/errorHandler.js';
 import { rateLimiter } from './middleware/rateLimiter.js';
 import logger from './utils/logger.js';
 import { validateEnvironment } from './utils/validateEnv.js';
+import passport from 'passport';
+import configurePassport from './services/passport.service.js';
 
 // Import routes
 import authRoutes from './routes/auth.routes.js';
@@ -28,13 +30,11 @@ import whatsappRoutes from './routes/whatsapp.routes.js';
 import analyticsRoutes from './routes/analytics.routes.js';
 import contactRoutes from './routes/contact.routes.js';
 import aiRoutes from './routes/ai.routes.js';
-
 import inventoryRoutes from './routes/inventory.routes.js';
 import uploadRoutes from './routes/upload.routes.js';
 import subscriptionRoutes from './routes/subscription.routes.js';
 import staffRoutes from './routes/staff.routes.js';
 
-// Load environment variables
 // Load environment variables
 logger.info('Starting server...');
 dotenv.config();
@@ -61,7 +61,6 @@ const io = new Server(httpServer, {
             const allowedOrigins = process.env.ALLOWED_ORIGINS
                 ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
                 : [];
-            // Allow requests with no origin (like mobile apps or curl requests)
             if (!origin) return callback(null, true);
 
             if (process.env.NODE_ENV === 'development' || allowedOrigins.indexOf(origin) !== -1 || allowedOrigins.includes('*')) {
@@ -80,14 +79,12 @@ const io = new Server(httpServer, {
 app.set('io', io);
 
 // Middleware
-app.use(helmet()); // Security headers
+app.use(helmet());
 app.use(cors({
     origin: (origin, callback) => {
         const allowedOrigins = process.env.ALLOWED_ORIGINS
             ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
             : [];
-
-        // Allow requests with no origin (like mobile apps or curl requests)
         if (!origin) return callback(null, true);
 
         if (process.env.NODE_ENV === 'development' || allowedOrigins.indexOf(origin) !== -1 || allowedOrigins.includes('*')) {
@@ -99,14 +96,14 @@ app.use(cors({
     },
     credentials: true
 }));
-app.use(compression()); // Compress responses
+app.use(compression());
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(morgan('combined', { stream: { write: message => logger.info(message.trim()) } }));
 
-// Handle Paddle Webhook separately before express.json()
-app.use('/api/subscriptions', subscriptionRoutes);
-
-app.use(express.json()); // Parse JSON bodies
-app.use(express.urlencoded({ extended: true })); // Parse URL-encoded bodies
-app.use(morgan('combined', { stream: { write: message => logger.info(message.trim()) } })); // Logging
+// Initialize Passport
+configurePassport();
+app.use(passport.initialize());
 
 // Rate limiting
 app.use('/api/', rateLimiter);
@@ -135,11 +132,11 @@ app.use('/api/whatsapp', whatsappRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/contact', contactRoutes);
 app.use('/api/ai', aiRoutes);
-
 app.use('/api/inventory', inventoryRoutes);
+app.use('/api/subscriptions', subscriptionRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/staff', staffRoutes);
-app.use('/uploads', express.static('uploads')); // Serve uploaded files statically
+app.use('/uploads', express.static('uploads'));
 
 // 404 handler
 app.use('*', (req, res) => {
@@ -156,14 +153,11 @@ app.use(errorHandler);
 io.on('connection', (socket) => {
     logger.info(`Client connected: ${socket.id}`);
 
-    // Join restaurant room
     socket.on('join:restaurant', (restaurantId) => {
         socket.join(`restaurant:${restaurantId}`);
         logger.info(`Socket ${socket.id} joined restaurant:${restaurantId}`);
     });
 
-
-    // Join order tracking room
     socket.on('join:order', (orderId) => {
         socket.join(`order:${orderId}`);
         logger.info(`Socket ${socket.id} joined order:${orderId}`);
@@ -181,7 +175,6 @@ httpServer.listen(PORT, () => {
     logger.info(`📡 WebSocket server ready`);
 });
 
-// Handle unhandled promise rejections
 process.on('unhandledRejection', (err) => {
     logger.error('Unhandled Promise Rejection:', err);
     httpServer.close(() => process.exit(1));

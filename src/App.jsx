@@ -31,12 +31,14 @@ const PageLoader = () => (
 const Landing = lazy(() => import('./pages/Landing'));
 const Terms = lazy(() => import('./pages/Terms'));
 const Privacy = lazy(() => import('./pages/Privacy'));
+const Demo = lazy(() => import('./pages/Demo'));
 
 // --- Auth Pages (Lazy) ---
 const Login = lazy(() => import('./pages/auth/Login'));
 const Register = lazy(() => import('./pages/auth/Register'));
 const ForgotPassword = lazy(() => import('./pages/auth/ForgotPassword'));
 const ResetPassword = lazy(() => import('./pages/auth/ResetPassword'));
+const VerifyEmail = lazy(() => import('./pages/auth/VerifyEmail'));
 
 // --- Owner Pages (Lazy) ---
 const OwnerDashboard = lazy(() => import('./pages/owner/Dashboard'));
@@ -53,6 +55,7 @@ const RestaurantOnboarding = lazy(() => import('./pages/owner').then(m => ({ def
 const ChefAI = lazy(() => import('./pages/owner').then(m => ({ default: m.ChefAI })));
 const Subscription = lazy(() => import('./pages/owner').then(m => ({ default: m.Subscription })));
 const StaffManagement = lazy(() => import('./pages/owner').then(m => ({ default: m.StaffManagement })));
+const Billing = lazy(() => import('./pages/owner/Billing'));
 const QRCodeManagement = lazy(() => import('./pages/owner/QRCodeManagement'));
 
 // --- Customer Pages (Lazy) ---
@@ -121,17 +124,12 @@ const FeedbackRedirect = () => {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+      <Router>
         <AuthProvider>
           <OfflineSyncProvider>
             <CartProvider>
               <Suspense fallback={<PageLoader />}>
                 <Routes>
-                  {/* Landing Page */}
-                  <Route path="/" element={<Landing />} />
-                  <Route path="/terms" element={<Terms />} />
-                  <Route path="/privacy" element={<Privacy />} />
-
                   {/* Redirect /menu to / since we need a restaurant ID */}
                   <Route path="/menu" element={<Navigate to="/" replace />} />
                   <Route path="/reviews" element={<ReviewRedirect />} />
@@ -143,6 +141,13 @@ function App() {
                   <Route path="/register" element={<Register />} />
                   <Route path="/forgot-password" element={<ForgotPassword />} />
                   <Route path="/reset-password" element={<ResetPassword />} />
+                  <Route path="/verify-email" element={<VerifyEmail />} />
+                  <Route path="/demo" element={<Demo />} />
+
+                  {/* Landing Page - Use path="/" exactly */}
+                  <Route path="/" element={<Landing />} />
+                  <Route path="/terms" element={<Terms />} />
+                  <Route path="/privacy" element={<Privacy />} />
 
                   {/* Customer Routes - Public */}
                   <Route path="/menu/:restaurantId" element={<CustomerLayout />}>
@@ -246,6 +251,16 @@ function App() {
                       <ProtectedRoute permission="staff">
                         <OwnerGuard>
                           <StaffManagement />
+                        </OwnerGuard>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/billing"
+                    element={
+                      <ProtectedRoute permission="revenue">
+                        <OwnerGuard>
+                          <Billing />
                         </OwnerGuard>
                       </ProtectedRoute>
                     }

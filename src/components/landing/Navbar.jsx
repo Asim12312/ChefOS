@@ -6,10 +6,9 @@ import Logo from "../common/Logo";
 import ThemeToggle from "../common/ThemeToggle";
 
 const navLinks = [
-    { name: "Features", href: "#features" },
-    { name: "How It Works", href: "#how-it-works" },
-    { name: "Pricing", href: "#pricing" },
-    { name: "Contact", href: "#contact" },
+    { name: "Features", href: "#features", isHash: true },
+    { name: "Demo", href: "/demo", isHash: false },
+    { name: "Pricing", href: "#pricing", isHash: true },
 ];
 
 export const Navbar = () => {
@@ -45,17 +44,29 @@ export const Navbar = () => {
                         {/* Desktop Navigation */}
                         <div className="hidden md:flex items-center gap-8">
                             {navLinks.map((link) => (
-                                <motion.a
-                                    key={link.name}
-                                    href={link.href}
-                                    className="text-muted-foreground hover:text-foreground transition-colors duration-300 text-sm font-medium relative group"
-                                    whileHover={{ y: -2 }}
-                                >
-                                    {link.name}
-                                    <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary transition-all duration-300 group-hover:w-full" />
-                                </motion.a>
-                            ))
-                            }
+                                link.isHash ? (
+                                    <motion.a
+                                        key={link.name}
+                                        href={link.href}
+                                        className="text-muted-foreground hover:text-foreground transition-colors duration-300 text-sm font-medium relative group"
+                                        whileHover={{ y: -2 }}
+                                    >
+                                        {link.name}
+                                        <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary transition-all duration-300 group-hover:w-full" />
+                                    </motion.a>
+                                ) : (
+                                    <Link
+                                        key={link.name}
+                                        to={link.href}
+                                        className="text-muted-foreground hover:text-foreground transition-colors duration-300 text-sm font-medium relative group"
+                                    >
+                                        <motion.span whileHover={{ y: -2 }} className="block">
+                                            {link.name}
+                                            <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary transition-all duration-300 group-hover:w-full" />
+                                        </motion.span>
+                                    </Link>
+                                )
+                            ))}
                         </div>
 
                         {/* CTA Buttons */}
@@ -109,17 +120,34 @@ export const Navbar = () => {
                         >
                             <div className="px-6 py-8 space-y-6">
                                 {navLinks.map((link, index) => (
-                                    <motion.a
-                                        key={link.name}
-                                        href={link.href}
-                                        initial={{ opacity: 0, x: -20 }}
-                                        animate={{ opacity: 1, x: 0 }}
-                                        transition={{ delay: index * 0.1 }}
-                                        onClick={() => setIsMobileMenuOpen(false)}
-                                        className="block text-lg font-medium text-foreground hover:text-primary transition-colors"
-                                    >
-                                        {link.name}
-                                    </motion.a>
+                                    link.isHash ? (
+                                        <motion.a
+                                            key={link.name}
+                                            href={link.href}
+                                            initial={{ opacity: 0, x: -20 }}
+                                            animate={{ opacity: 1, x: 0 }}
+                                            transition={{ delay: index * 0.1 }}
+                                            onClick={() => setIsMobileMenuOpen(false)}
+                                            className="block text-lg font-medium text-foreground hover:text-primary transition-colors"
+                                        >
+                                            {link.name}
+                                        </motion.a>
+                                    ) : (
+                                        <Link
+                                            key={link.name}
+                                            to={link.href}
+                                            onClick={() => setIsMobileMenuOpen(false)}
+                                            className="block text-lg font-medium text-foreground hover:text-primary transition-colors"
+                                        >
+                                            <motion.span
+                                                initial={{ opacity: 0, x: -20 }}
+                                                animate={{ opacity: 1, x: 0 }}
+                                                transition={{ delay: index * 0.1 }}
+                                            >
+                                                {link.name}
+                                            </motion.span>
+                                        </Link>
+                                    )
                                 ))}
                                 <div className="flex flex-col gap-3 pt-4">
                                     <div className="flex items-center justify-between mb-2">

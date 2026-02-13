@@ -13,6 +13,7 @@ import Reviews from './Reviews';
 import ChefAI from './ChefAI';
 import Subscription from './Subscription';
 import StaffManagement from './StaffManagement';
+import Billing from './Billing';
 
 export {
     RestaurantSettings,
@@ -28,5 +29,6 @@ export {
     Reviews,
     ChefAI,
     Subscription,
-    StaffManagement
+    StaffManagement,
+    Billing
 };

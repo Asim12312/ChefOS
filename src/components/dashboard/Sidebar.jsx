@@ -4,7 +4,8 @@ import {
     LayoutDashboard, Store, Table, Menu as MenuIcon, ShoppingCart,
     BarChart3, Star, LogOut, Bell, Calendar,
     MessageSquare, Settings, ChevronLeft, ChevronRight,
-    UtensilsCrossed, Sparkles, Pin, PinOff, Users, QrCode
+    UtensilsCrossed, Sparkles, Pin, PinOff, Users, QrCode,
+    DollarSign
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { cn } from '../../lib/utils';
@@ -41,6 +42,7 @@ const Sidebar = ({ className, open, onClose }) => {
     const allMenuItems = [
         { label: 'Overview', icon: LayoutDashboard, link: '/dashboard', permission: 'dashboard' },
         { label: 'Live Orders', icon: ShoppingCart, link: '/orders', permission: 'orders' },
+        { label: 'Billing', icon: DollarSign, link: '/billing', permission: 'revenue' },
         { label: 'Menu Management', icon: MenuIcon, link: '/menu-management', permission: 'menu' },
         { label: 'Table Management', icon: Table, link: '/tables', permission: 'tables' },
         { label: 'Inventory', icon: Store, link: '/inventory', permission: 'inventory' },
@@ -106,26 +108,25 @@ const Sidebar = ({ className, open, onClose }) => {
                     <Logo iconOnly={collapsed && !isPinned} className={(collapsed && !isPinned) ? "w-10 h-10" : "w-auto"} />
                 </Link>
 
-                {/* Sidebar Pin/Unpin Toggle (Desktop Only) */}
-                <button
-                    onClick={togglePin}
-                    className={cn(
-                        "hidden lg:flex p-2 rounded-xl transition-all duration-300",
-                        isPinned
-                            ? "bg-primary/20 text-primary border border-primary/30"
-                            : "text-muted-foreground hover:bg-muted hover:text-foreground border border-transparent",
-                        (collapsed && !isPinned) && "opacity-0 group-hover:opacity-100 transition-opacity"
-                    )}
-                >
-                    {isPinned ? <Pin size={18} fill="currentColor" /> : <Pin size={18} />}
-                </button>
-
                 {/* Mobile Close Button */}
                 <button
                     onClick={onClose}
                     className="lg:hidden p-2 hover:bg-muted rounded-xl transition-colors"
                 >
                     <ChevronLeft size={20} />
+                </button>
+
+                {/* Sidebar Pin/Unpin Toggle (Desktop Only) */}
+                <button
+                    onClick={togglePin}
+                    className={cn(
+                        "hidden lg:flex p-2 rounded-xl transition-all duration-300 bg-background border border-border shadow-sm",
+                        isPinned
+                            ? "relative right-4"
+                            : "absolute -right-3 top-1/2 -translate-y-1/2 group-hover:opacity-100 transition-opacity"
+                    )}
+                >
+                    {isPinned ? <Pin size={18} fill="currentColor" /> : <Pin size={18} />}
                 </button>
             </div>
 

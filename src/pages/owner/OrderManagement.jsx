@@ -7,11 +7,12 @@ import toast from 'react-hot-toast';
 import {
     Clock, CheckCircle, ChefHat, Bell, XCircle, DollarSign,
     MessageCircle, Mic, QrCode, AlertCircle, Users, Droplet,
-    Utensils, HelpCircle, Check, X
+    Utensils, HelpCircle, Check, X, Plus
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Sidebar from '../../components/dashboard/Sidebar';
 import Header from '../../components/dashboard/Header';
+import ManualOrderModal from '../../components/dashboard/ManualOrderModal';
 
 const OrderManagement = () => {
     const { user } = useAuth();
@@ -23,6 +24,7 @@ const OrderManagement = () => {
     });
     const [activeTab, setActiveTab] = useState('ACTIVE'); // ACTIVE, HISTORY
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    const [isManualOrderOpen, setIsManualOrderOpen] = useState(false);
 
     // Initial setup
     useEffect(() => {
@@ -375,50 +377,59 @@ const OrderManagement = () => {
                                     History
                                 </button>
                             </div>
-                        </div>
 
-                        {/* Professional Stats Overview - Horizontal Scroll on Mobile */}
-                        {activeTab === 'ACTIVE' && (
-                            <div className="flex overflow-x-auto pb-4 -mx-3 px-3 sm:mx-0 sm:px-0 sm:pb-0 sm:grid sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 snap-x snap-mandatory carousel-scrollbar touch-pan-x">
-                                <div className="bg-card border border-border p-4 rounded-xl flex items-center justify-between shadow-sm min-w-[240px] snap-center">
-                                    <div>
-                                        <p className="text-xs text-muted-foreground uppercase font-bold tracking-wider">Active Orders</p>
-                                        <h3 className="text-2xl font-bold text-foreground">{stats.active}</h3>
-                                    </div>
-                                    <div className="p-3 bg-primary/10 rounded-full text-primary">
-                                        <ChefHat size={20} />
-                                    </div>
+                            <button
+                                onClick={() => setIsManualOrderOpen(true)}
+                                className="bg-primary text-primary-foreground px-4 py-2 rounded-xl font-bold flex items-center gap-2 shadow-lg shadow-primary/20 hover:bg-primary/90 transition-all active:scale-95"
+                            >
+                                <Plus size={18} strokeWidth={3} />
+                                <span className="hidden sm:inline">New Order</span>
+                                <span className="sm:hidden">New</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Professional Stats Overview - Horizontal Scroll on Mobile */}
+                    {activeTab === 'ACTIVE' && (
+                        <div className="flex overflow-x-auto pb-4 -mx-3 px-3 sm:mx-0 sm:px-0 sm:pb-0 sm:grid sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 snap-x snap-mandatory carousel-scrollbar touch-pan-x">
+                            <div className="bg-card border border-border p-4 rounded-xl flex items-center justify-between shadow-sm min-w-[240px] snap-center">
+                                <div>
+                                    <p className="text-xs text-muted-foreground uppercase font-bold tracking-wider">Active Orders</p>
+                                    <h3 className="text-2xl font-bold text-foreground">{stats.active}</h3>
                                 </div>
-                                <div className="bg-card border border-border p-4 rounded-xl flex items-center justify-between shadow-sm min-w-[240px] snap-center">
-                                    <div>
-                                        <p className="text-xs text-muted-foreground uppercase font-bold tracking-wider">Est. Revenue</p>
-                                        <h3 className="text-2xl font-bold text-foreground">${stats.revenue.toFixed(2)}</h3>
-                                    </div>
-                                    <div className="p-3 bg-green-500/10 rounded-full text-green-500">
-                                        <DollarSign size={20} />
-                                    </div>
-                                </div>
-                                <div className="bg-card border border-border p-4 rounded-xl flex items-center justify-between shadow-sm min-w-[240px] snap-center">
-                                    <div>
-                                        <p className="text-xs text-muted-foreground uppercase font-bold tracking-wider">Attention Needed</p>
-                                        <h3 className={`text-2xl font-bold ${stats.urgent > 0 ? 'text-red-500' : 'text-foreground'}`}>{stats.urgent}</h3>
-                                    </div>
-                                    <div className={`p-3 rounded-full ${stats.urgent > 0 ? 'bg-red-500/10 text-red-500 animate-pulse' : 'bg-muted text-muted-foreground'}`}>
-                                        <AlertCircle size={20} />
-                                    </div>
-                                </div>
-                                <div className="bg-card border border-border p-4 rounded-xl flex items-center justify-between shadow-sm min-w-[240px] snap-center">
-                                    <div>
-                                        <p className="text-xs text-muted-foreground uppercase font-bold tracking-wider">Pending Requests</p>
-                                        <h3 className={`text-2xl font-bold ${stats.requests > 0 ? 'text-blue-500' : 'text-foreground'}`}>{stats.requests}</h3>
-                                    </div>
-                                    <div className={`p-3 rounded-full ${stats.requests > 0 ? 'bg-blue-500/10 text-blue-500' : 'bg-muted text-muted-foreground'}`}>
-                                        <Bell size={20} />
-                                    </div>
+                                <div className="p-3 bg-primary/10 rounded-full text-primary">
+                                    <ChefHat size={20} />
                                 </div>
                             </div>
-                        )}
-                    </div>
+                            <div className="bg-card border border-border p-4 rounded-xl flex items-center justify-between shadow-sm min-w-[240px] snap-center">
+                                <div>
+                                    <p className="text-xs text-muted-foreground uppercase font-bold tracking-wider">Est. Revenue</p>
+                                    <h3 className="text-2xl font-bold text-foreground">${stats.revenue.toFixed(2)}</h3>
+                                </div>
+                                <div className="p-3 bg-green-500/10 rounded-full text-green-500">
+                                    <DollarSign size={20} />
+                                </div>
+                            </div>
+                            <div className="bg-card border border-border p-4 rounded-xl flex items-center justify-between shadow-sm min-w-[240px] snap-center">
+                                <div>
+                                    <p className="text-xs text-muted-foreground uppercase font-bold tracking-wider">Attention Needed</p>
+                                    <h3 className={`text-2xl font-bold ${stats.urgent > 0 ? 'text-red-500' : 'text-foreground'}`}>{stats.urgent}</h3>
+                                </div>
+                                <div className={`p-3 rounded-full ${stats.urgent > 0 ? 'bg-red-500/10 text-red-500 animate-pulse' : 'bg-muted text-muted-foreground'}`}>
+                                    <AlertCircle size={20} />
+                                </div>
+                            </div>
+                            <div className="bg-card border border-border p-4 rounded-xl flex items-center justify-between shadow-sm min-w-[240px] snap-center">
+                                <div>
+                                    <p className="text-xs text-muted-foreground uppercase font-bold tracking-wider">Pending Requests</p>
+                                    <h3 className={`text-2xl font-bold ${stats.requests > 0 ? 'text-blue-500' : 'text-foreground'}`}>{stats.requests}</h3>
+                                </div>
+                                <div className={`p-3 rounded-full ${stats.requests > 0 ? 'bg-blue-500/10 text-blue-500' : 'bg-muted text-muted-foreground'}`}>
+                                    <Bell size={20} />
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
                     {activeTab === 'ACTIVE' ? (
                         <div className="flex-1 overflow-hidden flex flex-col lg:flex-row gap-4">
@@ -572,6 +583,12 @@ const OrderManagement = () => {
                     )}
                 </div>
             </div>
+
+            <ManualOrderModal
+                isOpen={isManualOrderOpen}
+                onClose={() => setIsManualOrderOpen(false)}
+                restaurantId={restaurantId}
+            />
         </div>
     );
 };

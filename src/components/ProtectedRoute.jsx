@@ -16,14 +16,31 @@ const ProtectedRoute = ({ children, roles = [], permission }) => {
         return <Navigate to="/login" replace />;
     }
 
+    // If user exists but is invalid (e.g. no role), treat as unauthenticated
+    if (user && !user.role) {
+        console.warn('[ProtectedRoute] User object present but missing role:', user);
+        return <Navigate to="/login" replace />;
+    }
+
     const hasRole = roles.length === 0 || roles.includes(user.role);
     const hasPermission = !permission || user.permissions?.includes(permission) || user.role === 'OWNER' || user.role === 'ADMIN';
 
     if (!hasRole || !hasPermission) {
+        console.warn('[ProtectedRoute] Access denied. Redirecting...', {
+            path: window.location.pathname,
+            userRole: user.role,
+            requiredRoles: roles,
+            requiredPermission: permission,
+            hasRole,
+            hasPermission
+        });
+
         if (user.role === 'OWNER') return <Navigate to="/onboarding" replace />;
         // If staff, try to find a safe route
         if (user.permissions?.includes('orders')) return <Navigate to="/orders" replace />;
         if (user.permissions?.includes('dashboard')) return <Navigate to="/dashboard" replace />;
+
+        console.log('[ProtectedRoute] Final fallback redirect to /');
         return <Navigate to="/" replace />;
     }
 

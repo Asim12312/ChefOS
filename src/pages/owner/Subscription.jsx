@@ -2,19 +2,13 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Check, Sparkles, Zap, ArrowRight, ShieldCheck, CreditCard, MessageCircle, X, BarChart3, Table, Store, MessageSquare } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { usePaddle } from '../../hooks/usePaddle';
 import { cn } from '../../lib/utils';
 import Sidebar from '../../components/dashboard/Sidebar';
 
-const BASE_PRICE = 25;
-const PADDLE_PRICE_ID = import.meta.env.VITE_PADDLE_PREMIUM_PRICE_ID;
-const PADDLE_TOKEN = import.meta.env.VITE_PADDLE_CLIENT_TOKEN;
-
 const Subscription = () => {
     const { user } = useAuth();
-    const { openCheckout } = usePaddle();
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-    const [showPendingModal, setShowPendingModal] = useState(false);
+    const [showManualModal, setShowManualModal] = useState(false);
 
     const subscription = user?.restaurant?.subscription;
     const isPremium = subscription?.plan === 'PREMIUM';
@@ -29,15 +23,7 @@ const Subscription = () => {
     }) : 'N/A';
 
     const handleUpgrade = () => {
-        if (!PADDLE_TOKEN || !PADDLE_PRICE_ID) {
-            setShowPendingModal(true);
-            return;
-        }
-
-        openCheckout(PADDLE_PRICE_ID, {
-            restaurantId: user?.restaurant?._id || user?.restaurant,
-            email: user?.email
-        });
+        setShowManualModal(true);
     };
 
     const features = [
@@ -138,9 +124,12 @@ const Subscription = () => {
 
                                     <div className="flex flex-col gap-3">
                                         {isPremium ? (
-                                            <button className="btn-primary w-full h-14 rounded-2xl text-[11px] font-black tracking-[0.15em] uppercase flex items-center justify-center gap-3 group shadow-xl shadow-primary/20">
+                                            <button
+                                                onClick={() => setShowManualModal(true)}
+                                                className="btn-primary w-full h-14 rounded-2xl text-[11px] font-black tracking-[0.15em] uppercase flex items-center justify-center gap-3 group shadow-xl shadow-primary/20"
+                                            >
                                                 <CreditCard size={18} />
-                                                Manage Billing
+                                                Billing Support
                                                 <ArrowRight size={18} className="transition-transform group-hover:translate-x-1" />
                                             </button>
                                         ) : (
@@ -154,7 +143,7 @@ const Subscription = () => {
                                         )}
                                         <div className="flex items-center justify-center gap-2 mt-4 text-muted-foreground">
                                             <ShieldCheck size={14} className="text-emerald-500" />
-                                            <span className="text-[10px] font-bold uppercase tracking-widest">Secured by Paddle Billing</span>
+                                            <span className="text-[10px] font-bold uppercase tracking-widest">Manual Billing Enabled</span>
                                         </div>
                                     </div>
                                 </div>
@@ -237,7 +226,7 @@ const Subscription = () => {
                                         ))}
                                     </div>
 
-                                    {!isPremium && !PADDLE_TOKEN && (
+                                    {!isPremium && (
                                         <motion.div
                                             initial={{ opacity: 0, y: 10 }}
                                             whileInView={{ opacity: 1, y: 0 }}
@@ -247,15 +236,15 @@ const Subscription = () => {
                                             <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto mb-6 text-primary shadow-inner">
                                                 <MessageCircle size={32} strokeWidth={2.5} />
                                             </div>
-                                            <h4 className="text-2xl font-black italic uppercase mb-2">Manual Activation Available</h4>
+                                            <h4 className="text-2xl font-black italic uppercase mb-2">Early Adopter Manual Activation</h4>
                                             <p className="text-sm text-muted-foreground mb-8 max-w-lg mx-auto leading-relaxed">
-                                                Our payment gateway is currently under review by Paddle. We can enable premium features for your restaurant manually today!
+                                                We are offering manual premium activation for our first 20 restaurant partners! Get full access to all features today via direct support.
                                             </p>
                                             <a
-                                                href="mailto:support@chefos.com"
+                                                href="mailto:support@chefos.com?subject=Premium%20Activation%20Request"
                                                 className="btn-primary inline-flex items-center gap-3 h-14 px-10 rounded-2xl font-black uppercase tracking-widest text-xs shadow-xl shadow-primary/20 group"
                                             >
-                                                Contact Support
+                                                Contact for Activation
                                                 <ArrowRight size={18} className="transition-transform group-hover:translate-x-1" />
                                             </a>
                                         </motion.div>
@@ -267,15 +256,15 @@ const Subscription = () => {
                 </div>
             </main>
 
-            {/* Paddle Pending Modal */}
+            {/* Manual Activation Modal */}
             <AnimatePresence>
-                {showPendingModal && (
+                {showManualModal && (
                     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
                         <motion.div
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
-                            onClick={() => setShowPendingModal(false)}
+                            onClick={() => setShowManualModal(false)}
                             className="absolute inset-0 bg-black/80 backdrop-blur-md"
                         />
                         <motion.div
@@ -289,7 +278,7 @@ const Subscription = () => {
                             </div>
 
                             <button
-                                onClick={() => setShowPendingModal(false)}
+                                onClick={() => setShowManualModal(false)}
                                 className="absolute top-8 right-8 w-12 h-12 rounded-2xl bg-muted/50 flex items-center justify-center hover:bg-muted transition-colors text-muted-foreground hover:text-foreground active:scale-95"
                             >
                                 <X size={24} />
@@ -297,12 +286,11 @@ const Subscription = () => {
 
                             <div className="flex flex-col items-center text-center relative z-10">
                                 <div className="w-24 h-24 rounded-[2rem] bg-primary/10 flex items-center justify-center text-primary mb-10 shadow-inner group">
-                                    <Sparkles size={48} className="animate-pulse" strokeWidth={2} />
+                                    <MessageCircle size={48} className="animate-pulse" strokeWidth={2} />
                                 </div>
-                                <h2 className="text-4xl font-black italic uppercase tracking-tight mb-4">Activation Pending</h2>
+                                <h2 className="text-4xl font-black italic uppercase tracking-tight mb-4">Manual Activation</h2>
                                 <p className="text-muted-foreground text-lg mb-10 leading-relaxed font-medium">
-                                    Our automated payment gateway is currently being reviewed by Paddle.
-                                    We're working hard to get this live for your market!
+                                    To provide the best service to our first 20 partners, we are processing premium upgrades manually via direct support.
                                 </p>
 
                                 <div className="w-full space-y-4">
@@ -311,24 +299,24 @@ const Subscription = () => {
                                             <ShieldCheck size={24} strokeWidth={2.5} />
                                         </div>
                                         <div>
-                                            <div className="text-sm font-black uppercase tracking-widest mb-1.5">Business Verification Queue</div>
-                                            <div className="text-sm text-muted-foreground font-medium leading-relaxed">Your restaurant profile is currently in the queue for final identity review by Paddle.</div>
+                                            <div className="text-sm font-black uppercase tracking-widest mb-1.5">Direct Activation</div>
+                                            <div className="text-sm text-muted-foreground font-medium leading-relaxed">Contact us with your Restaurant ID to unlock premium features and set up manual billing.</div>
                                         </div>
                                     </div>
 
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-8">
                                         <button
-                                            onClick={() => setShowPendingModal(false)}
+                                            onClick={() => setShowManualModal(false)}
                                             className="h-16 rounded-2xl bg-muted/50 font-black uppercase tracking-[0.2em] text-[10px] hover:bg-muted transition-all active:scale-95"
                                         >
-                                            Dismiss Notice
+                                            Close
                                         </button>
                                         <a
-                                            href="mailto:support@chefos.com?subject=Premium%20Upgrade%20Request"
+                                            href="mailto:support@chefos.com?subject=Premium%20Activation%20Request"
                                             className="h-16 rounded-2xl bg-primary text-primary-foreground font-black uppercase tracking-[0.2em] text-[10px] flex items-center justify-center gap-3 shadow-xl shadow-primary/20 hover:brightness-110 active:scale-95 transition-all"
                                         >
                                             <MessageCircle size={18} strokeWidth={3} />
-                                            Request Fast-Track
+                                            Contact Support
                                         </a>
                                     </div>
                                 </div>

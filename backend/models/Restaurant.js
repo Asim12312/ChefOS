@@ -126,8 +126,6 @@ const restaurantSchema = new mongoose.Schema({
             enum: ['active', 'canceled', 'past_due', 'paused', 'trialing', 'deleted'],
             default: 'active'
         },
-        paddleCustomerId: String,
-        paddleSubscriptionId: String,
         premiumUntil: Date
     }
 }, {

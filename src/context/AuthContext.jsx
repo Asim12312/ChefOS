@@ -1,4 +1,4 @@
-import { createContext, useState, useEffect, useContext } from 'react';
+import { createContext, useState, useEffect, useContext, useMemo } from 'react';
 import api from '../config/api';
 import toast from 'react-hot-toast';
 
@@ -10,17 +10,31 @@ export const AuthProvider = ({ children }) => {
 
     useEffect(() => {
         const initAuth = async () => {
+            console.log('[Auth] Initializing...');
             const token = localStorage.getItem('token');
-            const savedUser = localStorage.getItem('user');
+            const savedUserStr = localStorage.getItem('user');
 
-            if (token) {
-                if (savedUser) {
-                    setUser(JSON.parse(savedUser));
+            if (token && savedUserStr) {
+                try {
+                    const savedUser = JSON.parse(savedUserStr);
+                    // Validate savedUser has role and id
+                    if (savedUser && (savedUser.role || savedUser._id || savedUser.id)) {
+                        console.log('[Auth] Valid saved user found:', savedUser.role);
+                        setUser(savedUser);
+                        // Always fetch fresh data on reload to ensure state consistency
+                        await fetchMe();
+                    } else {
+                        console.warn('[Auth] Invalid saved user structure, clearing storage');
+                        localStorage.removeItem('user');
+                        localStorage.removeItem('token');
+                    }
+                } catch (e) {
+                    console.error('[Auth] Error parsing saved user:', e);
+                    localStorage.removeItem('user');
                 }
-                // Always fetch fresh data on reload to ensure state consistency (like premium status)
-                await fetchMe();
             }
             setLoading(false);
+            console.log('[Auth] Initialization complete');
         };
         initAuth();
     }, []);
@@ -28,19 +42,19 @@ export const AuthProvider = ({ children }) => {
     const login = async (email, password) => {
         try {
             const response = await api.post('/auth/login', { email, password });
-            
+
             // Safety checks for valid response
             if (!response || !response.data) {
                 throw new Error('Invalid response from server. Please check your backend.');
             }
-            
+
             if (!response.data.data) {
                 console.error('API Response:', response.data);
                 throw new Error('Server returned invalid data structure');
             }
-            
+
             const { user, token, refreshToken } = response.data.data;
-            
+
             if (!user || !token) {
                 throw new Error('Missing user or token in response');
             }
@@ -55,7 +69,14 @@ export const AuthProvider = ({ children }) => {
             toast.success('Login successful!');
             return user;
         } catch (error) {
-            const errorMsg = error.response?.data?.message || error.message || 'Login failed';
+            const errorData = error.response?.data;
+            const errorMsg = errorData?.message || error.message || 'Login failed';
+
+            if (errorData?.notVerified) {
+                // Return structured error for the UI to handle
+                return { notVerified: true, email: email };
+            }
+
             console.error('Login error:', errorMsg);
             toast.error(errorMsg);
             throw error;
@@ -70,35 +91,30 @@ export const AuthProvider = ({ children }) => {
                 password,
                 role,
             });
-            
+
             // Safety checks for valid response
             if (!response || !response.data) {
                 throw new Error('Invalid response from server. Please check your backend.');
             }
-            
-            if (!response.data.data) {
-                console.error('API Response:', response.data);
-                throw new Error('Server returned invalid data structure');
-            }
-            
-            const { user, token, refreshToken } = response.data.data;
-            
-            if (!user || !token) {
-                throw new Error('Missing user or token in response');
-            }
 
-            localStorage.setItem('token', token);
-            if (refreshToken) {
-                localStorage.setItem('refreshToken', refreshToken);
-            }
-            localStorage.setItem('user', JSON.stringify(user));
-
-            setUser(user);
-            toast.success('Registration successful!');
-            return user;
+            // With email verification, we don't get tokens back upon registration
+            toast.success(response.data.message || 'Registration successful! Verification email sent.');
+            return { success: true, message: response.data.message };
         } catch (error) {
             const errorMsg = error.response?.data?.message || error.message || 'Registration failed';
             console.error('Register error:', errorMsg);
+            toast.error(errorMsg);
+            throw error;
+        }
+    };
+
+    const resendVerification = async (email) => {
+        try {
+            const response = await api.post('/auth/resend-verification', { email });
+            toast.success(response.data.message || 'Verification email resent.');
+            return response.data;
+        } catch (error) {
+            const errorMsg = error.response?.data?.message || error.message || 'Failed to resend verification';
             toast.error(errorMsg);
             throw error;
         }
@@ -140,12 +156,9 @@ export const AuthProvider = ({ children }) => {
             setUser(updatedUser);
             return updatedUser;
         } catch (error) {
-            // Attempt token refresh if unauthorized
-            if (error.response?.status === 401) {
-                const refreshed = await tryRefresh();
-                if (refreshed) return fetchMe(); // Retry
-            }
-            console.error('Error fetching user data:', error);
+            // No need to tryRefresh here; the api interceptor already handles it.
+            // If it reaches here, both initial request and refresh-retry failed.
+            console.error('[Auth] Error fetching user data:', error.message);
             return null;
         }
     };
@@ -166,18 +179,19 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
-    const value = {
+    const value = useMemo(() => ({
         user,
         loading,
         login,
         register,
+        resendVerification,
         logout,
         checkRestaurantStatus,
         fetchMe,
         tryRefresh,
         setUser,
         isAuthenticated: !!user,
-    };
+    }), [user, loading]);
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
