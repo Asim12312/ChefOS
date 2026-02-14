@@ -7,10 +7,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const configurePassport = () => {
-    const callbackURL = process.env.GOOGLE_CALLBACK_URL ||
-        (process.env.NODE_ENV === 'production'
-            ? 'https://www.chefos.pro/api/auth/google/callback'
-            : 'http://localhost:5000/api/auth/google/callback');
+    const callbackURL = process.env.GOOGLE_CALLBACK_URL || '/api/auth/google/callback';
 
     logger.info(`Google OAuth Callback URL: ${callbackURL}`);
 
