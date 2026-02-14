@@ -22,15 +22,16 @@ const configurePassport = () => {
             // Parse state to get intent and role
             let intent = 'login';
             let role = 'OWNER';
+
             if (req.query.state) {
-                try {
-                    const decodedState = JSON.parse(Buffer.from(req.query.state, 'base64').toString());
-                    intent = decodedState.intent || 'login';
-                    role = decodedState.role || 'OWNER';
-                } catch (e) {
-                    logger.error(`Error parsing OAuth state: ${e.message}`);
+                const parts = req.query.state.split(':');
+                if (parts.length === 2) {
+                    intent = parts[0];
+                    role = parts[1];
                 }
             }
+
+            logger.info(`OAuth Strategy - Intent: ${intent}, Role: ${role}, Email: ${profile.emails[0].value}`);
 
             // Check if user already exists
             let user = await User.findOne({

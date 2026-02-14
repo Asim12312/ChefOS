@@ -36,8 +36,9 @@ router.post('/resend-verification', authLimiter, resendVerificationValidation, r
 
 // Google OAuth routes
 router.get('/google', (req, res, next) => {
-    const { intent, role } = req.query;
-    const state = Buffer.from(JSON.stringify({ intent, role })).toString('base64');
+    const { intent = 'login', role = 'OWNER' } = req.query;
+    // Use a simple string instead of base64 to avoid parsing issues
+    const state = `${intent}:${role}`;
     passport.authenticate('google', {
         scope: ['profile', 'email'],
         state: state
@@ -50,8 +51,8 @@ router.get('/google/callback', (req, res, next) => {
         if (!user) {
             const message = info?.message || 'Authentication failed';
             const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-            // If it's a registration failure or login failure, redirect accordingly
-            const targetPage = message === 'Email not registered' ? 'login' : 'register';
+            // If email is not registered, take them to the REGISTER page as requested
+            const targetPage = message === 'Email not registered' ? 'register' : 'login';
             return res.redirect(`${frontendUrl}/${targetPage}?error=${encodeURIComponent(message)}`);
         }
         req.user = user;
