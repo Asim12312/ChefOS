@@ -15,9 +15,23 @@ const configurePassport = () => {
         clientID: process.env.GOOGLE_CLIENT_ID,
         clientSecret: process.env.GOOGLE_CLIENT_SECRET,
         callbackURL: callbackURL,
-        proxy: true
-    }, async (accessToken, refreshToken, profile, done) => {
+        proxy: true,
+        passReqToCallback: true
+    }, async (req, accessToken, refreshToken, profile, done) => {
         try {
+            // Parse state to get intent and role
+            let intent = 'login';
+            let role = 'OWNER';
+            if (req.query.state) {
+                try {
+                    const decodedState = JSON.parse(Buffer.from(req.query.state, 'base64').toString());
+                    intent = decodedState.intent || 'login';
+                    role = decodedState.role || 'OWNER';
+                } catch (e) {
+                    logger.error(`Error parsing OAuth state: ${e.message}`);
+                }
+            }
+
             // Check if user already exists
             let user = await User.findOne({
                 $or: [
@@ -31,7 +45,7 @@ const configurePassport = () => {
                 let isModified = false;
                 if (!user.googleId) {
                     user.googleId = profile.id;
-                    user.emailVerified = true; // Auto-verify if coming from Google
+                    user.emailVerified = true;
                     isModified = true;
                 }
 
@@ -46,9 +60,25 @@ const configurePassport = () => {
                 return done(null, user);
             }
 
-            // DO NOT auto-create user anymore as per request
-            logger.info(`Unregistered Google user attempted login: ${profile.emails[0].value}`);
-            return done(null, false, { message: 'Email not registered' });
+            // If user doesn't exist and intent is login, return error
+            if (intent === 'login') {
+                logger.info(`Unregistered Google user attempted login: ${profile.emails[0].value}`);
+                return done(null, false, { message: 'Email not registered' });
+            }
+
+            // If user doesn't exist and intent is register, create user
+            user = await User.create({
+                name: profile.displayName,
+                email: profile.emails[0].value,
+                googleId: profile.id,
+                emailVerified: true,
+                profileImage: profile.photos[0]?.value,
+                password: Math.random().toString(36).slice(-10) + 'A1!',
+                role: role
+            });
+
+            logger.info(`New user registered via Google: ${user.email} as ${user.role}`);
+            return done(null, user);
         } catch (error) {
             logger.error(`Google Strategy Error: ${error.message}`);
             return done(error, null);

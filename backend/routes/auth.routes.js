@@ -35,14 +35,24 @@ router.post('/verify-email', generalLimiter, verifyEmailValidation, verifyEmail)
 router.post('/resend-verification', authLimiter, resendVerificationValidation, resendVerificationEmail);
 
 // Google OAuth routes
-router.get('/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
+router.get('/google', (req, res, next) => {
+    const { intent, role } = req.query;
+    const state = Buffer.from(JSON.stringify({ intent, role })).toString('base64');
+    passport.authenticate('google', {
+        scope: ['profile', 'email'],
+        state: state
+    })(req, res, next);
+});
+
 router.get('/google/callback', (req, res, next) => {
     passport.authenticate('google', { session: false }, (err, user, info) => {
         if (err) return next(err);
         if (!user) {
             const message = info?.message || 'Authentication failed';
             const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-            return res.redirect(`${frontendUrl}/login?error=${encodeURIComponent(message)}`);
+            // If it's a registration failure or login failure, redirect accordingly
+            const targetPage = message === 'Email not registered' ? 'login' : 'register';
+            return res.redirect(`${frontendUrl}/${targetPage}?error=${encodeURIComponent(message)}`);
         }
         req.user = user;
         googleAuthCallback(req, res);

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { UserPlus, ArrowRight, Store, ChefHat, Check, X, CheckCircle2 } from 'lucide-react';
+import { UserPlus, ArrowRight, Store, ChefHat, Check, X, CheckCircle2, Mail } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Logo from "../../components/common/Logo";
 import ThemeToggle from '../../components/common/ThemeToggle';
@@ -25,6 +25,17 @@ const Register = () => {
     const [showPasswordRequirements, setShowPasswordRequirements] = useState(false);
     const { register, resendVerification, user: authUser, checkRestaurantStatus } = useAuth();
     const navigate = useNavigate();
+
+    // Handle errors from social login redirect
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const error = params.get('error');
+        if (error) {
+            toast.error(error);
+            // Clear URL
+            window.history.replaceState({}, document.title, window.location.pathname);
+        }
+    }, []);
 
     // Auto-redirect if already logged in as OWNER or STAFF
     useEffect(() => {
@@ -93,7 +104,7 @@ const Register = () => {
 
     const handleGoogleSignUp = () => {
         const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-        window.location.href = `${API_URL}/auth/google`;
+        window.location.href = `${API_URL}/auth/google?intent=register&role=${formData.role}`;
     };
 
     if (isRegistered) {
