@@ -9,7 +9,7 @@ dotenv.config();
 const configurePassport = () => {
     const callbackURL = process.env.GOOGLE_CALLBACK_URL ||
         (process.env.NODE_ENV === 'production'
-            ? 'https://chefos.pro/api/auth/google/callback'
+            ? 'https://www.chefos.pro/api/auth/google/callback'
             : 'http://localhost:5000/api/auth/google/callback');
 
     logger.info(`Google OAuth Callback URL: ${callbackURL}`);
@@ -38,8 +38,6 @@ const configurePassport = () => {
                     isModified = true;
                 }
 
-                // If user exists but is just a CUSTOMER, upgrade them to OWNER
-                // This allows diners who decide to sign up as owners to proceed
                 if (user.role === 'CUSTOMER') {
                     user.role = 'OWNER';
                     isModified = true;
@@ -51,19 +49,9 @@ const configurePassport = () => {
                 return done(null, user);
             }
 
-            // Create new user if not exists
-            user = await User.create({
-                name: profile.displayName,
-                email: profile.emails[0].value,
-                googleId: profile.id,
-                emailVerified: true, // Google accounts are verified
-                avatar: profile.photos[0]?.value,
-                password: Math.random().toString(36).slice(-10) + 'A1!', // Random dummy password
-                role: 'OWNER' // Default to OWNER for Google Sign-Ups so they can create restaurants
-            });
-
-            logger.info(`New user registered via Google: ${user.email}`);
-            return done(null, user);
+            // DO NOT auto-create user anymore as per request
+            logger.info(`Unregistered Google user attempted login: ${profile.emails[0].value}`);
+            return done(null, false, { message: 'Email not registered' });
         } catch (error) {
             logger.error(`Google Strategy Error: ${error.message}`);
             return done(error, null);

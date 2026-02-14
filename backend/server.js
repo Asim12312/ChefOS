@@ -106,6 +106,7 @@ configurePassport();
 app.use(passport.initialize());
 
 // Rate limiting
+app.set('trust proxy', 1);
 app.use('/api/', rateLimiter);
 
 // Health check endpoint

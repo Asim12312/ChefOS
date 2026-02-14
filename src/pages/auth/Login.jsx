@@ -15,12 +15,23 @@ const Login = () => {
     const { login, resendVerification, setUser, checkRestaurantStatus, user: authUser } = useAuth();
     const navigate = useNavigate();
 
-    // Handle social login redirect tokens
+    // Handle social login redirect tokens and errors
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
         const token = params.get('token');
         const refreshToken = params.get('refreshToken');
         const userStr = params.get('user');
+        const error = params.get('error');
+
+        if (error) {
+            toast.error(error);
+            if (error === 'Email not registered') {
+                navigate('/register');
+            }
+            // Clear URL
+            window.history.replaceState({}, document.title, window.location.pathname);
+            return;
+        }
 
         if (token && refreshToken && userStr) {
             try {
@@ -42,16 +53,11 @@ const Login = () => {
                     checkRestaurantStatus().then(hasRestaurant => {
                         navigate(hasRestaurant ? '/dashboard' : '/onboarding');
                     });
-                } else if (userData.role === 'CHEF' || userData.role === 'WAITER') {
-                    navigate('/orders');
-                } else if (userData.permissions && userData.permissions.length > 0) {
+                } else if (userData.role === 'CHEF' || userData.role === 'WAITER' || (userData.permissions && userData.permissions.length > 0)) {
                     navigate('/orders');
                 } else {
-                    // For CUSTOMER or unknown roles, DO NOT redirect to /orders as they will bounce back
-                    // Just stay on the page or redirect to a customer landing if available
                     console.warn('[Login] Social login user has no staff role:', userData.role);
                     toast.error("Access restricted: This account does not have staff permissions.");
-                    // Optional: navigate('/');
                 }
             } catch (err) {
                 console.error('Error parsing social login data:', err);

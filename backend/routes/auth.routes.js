@@ -36,7 +36,18 @@ router.post('/resend-verification', authLimiter, resendVerificationValidation, r
 
 // Google OAuth routes
 router.get('/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
-router.get('/google/callback', passport.authenticate('google', { failureRedirect: '/login', session: false }), googleAuthCallback);
+router.get('/google/callback', (req, res, next) => {
+    passport.authenticate('google', { session: false }, (err, user, info) => {
+        if (err) return next(err);
+        if (!user) {
+            const message = info?.message || 'Authentication failed';
+            const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+            return res.redirect(`${frontendUrl}/login?error=${encodeURIComponent(message)}`);
+        }
+        req.user = user;
+        googleAuthCallback(req, res);
+    })(req, res, next);
+});
 
 // Protected routes
 router.post('/logout', protect, logout);
