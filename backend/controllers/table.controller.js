@@ -1,6 +1,7 @@
 import Table from '../models/Table.js';
 import Order from '../models/Order.js';
 import Payment from '../models/Payment.js';
+import Restaurant from '../models/Restaurant.js';
 import QRCode from 'qrcode';
 
 // @desc    Create table
@@ -19,6 +20,28 @@ export const createTable = async (req, res, next) => {
                 success: false,
                 message: 'Not authorized to add tables to this restaurant'
             });
+        }
+
+        // Plan limits check
+        const restaurantDoc = await Restaurant.findById(restaurant).populate('subscription');
+        if (restaurantDoc) {
+            const currentTableCount = await Table.countDocuments({ restaurant, isActive: true });
+
+            // Get plan limits (default to FREE if no subscription)
+            const plan = restaurantDoc.subscription?.plan?.name || 'FREE';
+            const limits = {
+                'FREE': 2,
+                'PREMIUM': Infinity
+            };
+
+            const maxTables = limits[plan] || 2;
+
+            if (currentTableCount >= maxTables) {
+                return res.status(403).json({
+                    success: false,
+                    message: `You have reached the maximum number of tables (${maxTables}) for your ${plan} plan. Please upgrade to add more.`
+                });
+            }
         }
 
         const table = await Table.create({

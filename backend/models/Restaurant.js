@@ -116,17 +116,16 @@ const restaurantSchema = new mongoose.Schema({
         default: true
     },
     subscription: {
-        plan: {
-            type: String,
-            enum: ['FREE', 'PREMIUM'],
-            default: 'FREE'
-        },
-        status: {
-            type: String,
-            enum: ['active', 'canceled', 'past_due', 'paused', 'trialing', 'deleted'],
-            default: 'active'
-        },
-        premiumUntil: Date
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Subscription'
+    },
+    stripeCustomerId: {
+        type: String
+    },
+    paymentGateway: {
+        type: String,
+        enum: ['STRIPE', 'SAFEPAY'],
+        default: 'STRIPE'
     }
 }, {
     timestamps: true

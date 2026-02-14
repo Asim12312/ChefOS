@@ -1,11 +1,13 @@
-import Stripe from 'stripe';
+import stripeService from '../services/stripe.service.js';
+import safepayService from '../services/safepay.service.js';
+import paymentGatewayService from '../services/paymentGateway.service.js';
 import Payment from '../models/Payment.js';
+import Subscription from '../models/Subscription.js';
 import Order from '../models/Order.js';
 import Restaurant from '../models/Restaurant.js';
+import logger from '../utils/logger.js';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-
-// @desc    Create payment intent
+// @desc    Create payment intent (Multi-gateway)
 // @route   POST /api/payments/create
 // @access  Public
 export const createPaymentIntent = async (req, res, next) => {
@@ -28,71 +30,150 @@ export const createPaymentIntent = async (req, res, next) => {
             });
         }
 
-        // Create Stripe payment intent
-        const paymentIntent = await stripe.paymentIntents.create({
-            amount: Math.round(order.total * 100), // Convert to cents
-            currency: order.restaurant.currency.toLowerCase() || 'usd',
-            metadata: {
-                orderId: order._id.toString(),
-                restaurantId: order.restaurant._id.toString(),
-                orderNumber: order.orderNumber
-            }
+        const currency = order.restaurant.currency || 'USD';
+        const preferredGateway = order.restaurant.paymentGateway;
+
+        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+
+        // Create payment using gateway service
+        const paymentResult = await paymentGatewayService.createPayment({
+            amount: order.total,
+            currency,
+            orderId: order._id.toString(),
+            orderNumber: order.orderNumber,
+            restaurantId: order.restaurant._id.toString(),
+            successUrl: `${frontendUrl}/order/${order._id}/success`,
+            cancelUrl: `${frontendUrl}/order/${order._id}/cancel`,
+            preferredGateway
         });
 
+        // Determine gateway used
+        const gateway = paymentGatewayService.selectGateway(currency, preferredGateway);
+
         // Create payment record
-        const payment = await Payment.create({
+        const paymentData = {
             order: order._id,
             restaurant: order.restaurant._id,
             amount: order.total,
-            currency: order.restaurant.currency || 'USD',
-            paymentMethod: 'STRIPE',
-            status: 'PENDING',
-            paymentIntentId: paymentIntent.id
-        });
+            currency,
+            paymentMethod: gateway,
+            paymentType: 'ORDER',
+            status: 'PENDING'
+        };
+
+        if (gateway === 'STRIPE') {
+            paymentData.paymentIntentId = paymentResult.paymentIntentId;
+        } else if (gateway === 'SAFEPAY') {
+            paymentData.safepayTracker = paymentResult.tracker;
+            paymentData.safepayCheckoutUrl = paymentResult.checkoutUrl;
+        }
+
+        const payment = await Payment.create(paymentData);
 
         res.status(200).json({
             success: true,
             data: {
-                clientSecret: paymentIntent.client_secret,
+                gateway,
                 paymentId: payment._id,
-                amount: order.total
+                amount: order.total,
+                currency,
+                // Stripe
+                ...(gateway === 'STRIPE' && { clientSecret: paymentResult.clientSecret }),
+                // Safepay
+                ...(gateway === 'SAFEPAY' && {
+                    checkoutUrl: paymentResult.checkoutUrl,
+                    tracker: paymentResult.tracker
+                })
             }
         });
     } catch (error) {
+        logger.error(`Payment creation error: ${error.message}`);
         next(error);
     }
 };
 
 // @desc    Stripe webhook handler
-// @route   POST /api/payments/webhook
+// @route   POST /api/payments/webhook/stripe
 // @access  Public (Stripe)
 export const handleStripeWebhook = async (req, res, next) => {
     const sig = req.headers['stripe-signature'];
-    let event;
 
     try {
-        event = stripe.webhooks.constructEvent(
+        const event = stripeService.verifyWebhookSignature(
             req.body,
             sig,
             process.env.STRIPE_WEBHOOK_SECRET
         );
+
+        logger.info(`Stripe webhook received: ${event.type}`);
+
+        // Handle the event
+        switch (event.type) {
+            case 'payment_intent.succeeded':
+                await handlePaymentIntentSucceeded(event.data.object, req);
+                break;
+
+            case 'payment_intent.payment_failed':
+                await handlePaymentIntentFailed(event.data.object);
+                break;
+
+            case 'customer.subscription.created':
+            case 'customer.subscription.updated':
+                await handleSubscriptionUpdate(event.data.object);
+                break;
+
+            case 'customer.subscription.deleted':
+                await handleSubscriptionDeleted(event.data.object);
+                break;
+
+            case 'invoice.payment_succeeded':
+                await handleInvoicePaymentSucceeded(event.data.object);
+                break;
+
+            case 'invoice.payment_failed':
+                await handleInvoicePaymentFailed(event.data.object);
+                break;
+
+            default:
+                logger.info(`Unhandled Stripe event type: ${event.type}`);
+        }
+
+        res.json({ received: true });
     } catch (err) {
+        logger.error(`Stripe webhook error: ${err.message}`);
         return res.status(400).send(`Webhook Error: ${err.message}`);
     }
+};
 
-    // Handle the event
-    switch (event.type) {
-        case 'payment_intent.succeeded':
-            const paymentIntent = event.data.object;
+// @desc    Safepay webhook handler
+// @route   POST /api/payments/webhook/safepay
+// @access  Public (Safepay)
+export const handleSafepayWebhook = async (req, res, next) => {
+    const signature = req.headers['x-sfpy-signature'];
 
-            // Update payment status
-            const payment = await Payment.findOne({ paymentIntentId: paymentIntent.id });
-            if (payment) {
-                payment.status = 'COMPLETED';
-                payment.transactionId = paymentIntent.id;
-                await payment.save();
+    try {
+        // Verify signature
+        const isValid = safepayService.verifyWebhookSignature(signature, req.body);
 
-                // Update order payment status
+        if (!isValid) {
+            logger.warn('Invalid Safepay webhook signature');
+            return res.status(401).json({ success: false, message: 'Invalid signature' });
+        }
+
+        logger.info(`Safepay webhook received: ${req.body.event}`);
+
+        const webhookData = await safepayService.processWebhook(req.body);
+
+        // Find payment by tracker
+        const payment = await Payment.findOne({ safepayTracker: webhookData.tracker });
+
+        if (payment) {
+            payment.status = webhookData.status;
+            payment.transactionId = webhookData.tracker;
+            await payment.save();
+
+            // Update order if payment completed
+            if (webhookData.status === 'COMPLETED') {
                 const order = await Order.findById(payment.order);
                 if (order) {
                     order.paymentStatus = 'PAID';
@@ -101,36 +182,170 @@ export const handleStripeWebhook = async (req, res, next) => {
 
                     // Emit real-time notification
                     const io = req.app.get('io');
-                    io.to(`restaurant:${order.restaurant}`).emit('payment:success', {
-                        orderId: order._id,
-                        orderNumber: order.orderNumber,
-                        amount: payment.amount
-                    });
+                    if (io) {
+                        io.to(`restaurant:${order.restaurant}`).emit('payment:success', {
+                            orderId: order._id,
+                            orderNumber: order.orderNumber,
+                            amount: payment.amount
+                        });
 
-                    io.to(`order:${order._id}`).emit('payment:confirmed', {
-                        status: 'PAID',
-                        amount: payment.amount
-                    });
+                        io.to(`order:${order._id}`).emit('payment:confirmed', {
+                            status: 'PAID',
+                            amount: payment.amount
+                        });
+                    }
                 }
             }
-            break;
+        }
 
-        case 'payment_intent.payment_failed':
-            const failedIntent = event.data.object;
-
-            const failedPayment = await Payment.findOne({ paymentIntentId: failedIntent.id });
-            if (failedPayment) {
-                failedPayment.status = 'FAILED';
-                failedPayment.failureReason = failedIntent.last_payment_error?.message;
-                await failedPayment.save();
-            }
-            break;
-
-        default:
-            console.log(`Unhandled event type ${event.type}`);
+        res.json({ received: true });
+    } catch (error) {
+        logger.error(`Safepay webhook error: ${error.message}`);
+        return res.status(400).send(`Webhook Error: ${error.message}`);
     }
+};
 
-    res.json({ received: true });
+// @desc    Create subscription
+// @route   POST /api/payments/subscription/create
+// @access  Private (Owner)
+export const createSubscription = async (req, res, next) => {
+    try {
+        const { restaurantId, planName, priceId } = req.body;
+
+        const restaurant = await Restaurant.findById(restaurantId);
+        if (!restaurant) {
+            return res.status(404).json({ success: false, message: 'Restaurant not found' });
+        }
+
+        // Check if subscription already exists
+        if (restaurant.subscription) {
+            return res.status(400).json({ success: false, message: 'Restaurant already has an active subscription' });
+        }
+
+        let subscriptionData = {
+            restaurant: restaurant._id,
+            plan: getPlanDetails(planName, priceId),
+            status: 'ACTIVE',
+            currentPeriodStart: new Date(),
+            currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days
+        };
+
+        let clientSecret = null;
+
+        // Skip Stripe for FREE plan
+        if (planName !== 'FREE') {
+            // Create or get Stripe customer
+            const customer = await stripeService.createOrGetCustomer(
+                restaurant.contact.email || req.user.email,
+                restaurant.name,
+                { restaurantId: restaurant._id.toString() }
+            );
+
+            // Create subscription
+            const subscriptionResult = await stripeService.createSubscription({
+                customerId: customer.id,
+                priceId,
+                metadata: {
+                    restaurantId: restaurant._id.toString(),
+                    plan: planName
+                }
+            });
+
+            subscriptionData.stripeCustomerId = customer.id;
+            subscriptionData.stripeSubscriptionId = subscriptionResult.subscriptionId;
+            subscriptionData.stripePriceId = priceId;
+            subscriptionData.status = subscriptionResult.status.toUpperCase();
+            clientSecret = subscriptionResult.clientSecret;
+
+            restaurant.stripeCustomerId = customer.id;
+        }
+
+        // Create subscription record
+        const subscription = await Subscription.create(subscriptionData);
+
+        // Update restaurant
+        restaurant.subscription = subscription._id;
+        await restaurant.save();
+
+        logger.info(`Subscription created for restaurant ${restaurant._id}: ${subscription._id} (${planName})`);
+
+        res.status(201).json({
+            success: true,
+            data: {
+                subscription,
+                clientSecret
+            }
+        });
+    } catch (error) {
+        logger.error(`Subscription creation error: ${error.message}`);
+        next(error);
+    }
+};
+
+// @desc    Cancel subscription
+// @route   POST /api/payments/subscription/cancel
+// @access  Private (Owner)
+export const cancelSubscription = async (req, res, next) => {
+    try {
+        const { restaurantId, immediately = false } = req.body;
+
+        const restaurant = await Restaurant.findById(restaurantId).populate('subscription');
+        if (!restaurant || !restaurant.subscription) {
+            return res.status(404).json({ success: false, message: 'No active subscription found' });
+        }
+
+        const subscription = restaurant.subscription;
+
+        // Cancel in Stripe
+        await stripeService.cancelSubscription(subscription.stripeSubscriptionId, immediately);
+
+        // Update subscription record
+        subscription.status = immediately ? 'CANCELLED' : 'ACTIVE';
+        subscription.cancelAtPeriodEnd = !immediately;
+        subscription.canceledAt = new Date();
+        if (immediately) {
+            subscription.endedAt = new Date();
+        }
+        await subscription.save();
+
+        logger.info(`Subscription cancelled for restaurant ${restaurant._id}`);
+
+        res.status(200).json({
+            success: true,
+            message: immediately ? 'Subscription cancelled immediately' : 'Subscription will cancel at period end'
+        });
+    } catch (error) {
+        logger.error(`Subscription cancellation error: ${error.message}`);
+        next(error);
+    }
+};
+
+// @desc    Get billing portal session
+// @route   GET /api/payments/subscription/portal
+// @access  Private (Owner)
+export const getBillingPortal = async (req, res, next) => {
+    try {
+        const { restaurantId } = req.query;
+
+        const restaurant = await Restaurant.findById(restaurantId);
+        if (!restaurant || !restaurant.stripeCustomerId) {
+            return res.status(404).json({ success: false, message: 'No billing account found' });
+        }
+
+        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+        const portalSession = await stripeService.createBillingPortalSession(
+            restaurant.stripeCustomerId,
+            `${frontendUrl}/dashboard/subscription`
+        );
+
+        res.status(200).json({
+            success: true,
+            url: portalSession.url
+        });
+    } catch (error) {
+        logger.error(`Billing portal error: ${error.message}`);
+        next(error);
+    }
 };
 
 // @desc    Verify payment status
@@ -154,7 +369,8 @@ export const verifyPayment = async (req, res, next) => {
             data: {
                 status: payment.status,
                 order: payment.order,
-                amount: payment.amount
+                amount: payment.amount,
+                gateway: payment.paymentMethod
             }
         });
     } catch (error) {
@@ -202,3 +418,127 @@ export const getPaymentHistory = async (req, res, next) => {
         next(error);
     }
 };
+
+// @desc    Get available payment methods
+// @route   GET /api/payments/methods
+// @access  Public
+export const getPaymentMethods = async (req, res, next) => {
+    try {
+        const { currency = 'USD' } = req.query;
+
+        const methods = paymentGatewayService.getAvailablePaymentMethods(currency);
+
+        res.status(200).json({
+            success: true,
+            data: methods
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+// ========== Helper Functions ==========
+
+async function handlePaymentIntentSucceeded(paymentIntent, req) {
+    const payment = await Payment.findOne({ paymentIntentId: paymentIntent.id });
+    if (payment) {
+        payment.status = 'COMPLETED';
+        payment.transactionId = paymentIntent.id;
+        await payment.save();
+
+        // Update order payment status
+        const order = await Order.findById(payment.order);
+        if (order) {
+            order.paymentStatus = 'PAID';
+            order.paymentMethod = 'ONLINE';
+            await order.save();
+
+            // Emit real-time notification
+            const io = req.app.get('io');
+            if (io) {
+                io.to(`restaurant:${order.restaurant}`).emit('payment:success', {
+                    orderId: order._id,
+                    orderNumber: order.orderNumber,
+                    amount: payment.amount
+                });
+
+                io.to(`order:${order._id}`).emit('payment:confirmed', {
+                    status: 'PAID',
+                    amount: payment.amount
+                });
+            }
+        }
+    }
+}
+
+async function handlePaymentIntentFailed(paymentIntent) {
+    const payment = await Payment.findOne({ paymentIntentId: paymentIntent.id });
+    if (payment) {
+        payment.status = 'FAILED';
+        payment.failureReason = paymentIntent.last_payment_error?.message;
+        await payment.save();
+    }
+}
+
+async function handleSubscriptionUpdate(subscription) {
+    const sub = await Subscription.findOne({ stripeSubscriptionId: subscription.id });
+    if (sub) {
+        sub.status = subscription.status.toUpperCase();
+        sub.currentPeriodStart = new Date(subscription.current_period_start * 1000);
+        sub.currentPeriodEnd = new Date(subscription.current_period_end * 1000);
+        sub.cancelAtPeriodEnd = subscription.cancel_at_period_end;
+        await sub.save();
+    }
+}
+
+async function handleSubscriptionDeleted(subscription) {
+    const sub = await Subscription.findOne({ stripeSubscriptionId: subscription.id });
+    if (sub) {
+        sub.status = 'CANCELLED';
+        sub.endedAt = new Date();
+        await sub.save();
+    }
+}
+
+async function handleInvoicePaymentSucceeded(invoice) {
+    logger.info(`Invoice payment succeeded: ${invoice.id}`);
+}
+
+async function handleInvoicePaymentFailed(invoice) {
+    const subscription = await Subscription.findOne({ stripeSubscriptionId: invoice.subscription });
+    if (subscription) {
+        subscription.status = 'PAST_DUE';
+        await subscription.save();
+    }
+}
+
+function getPlanDetails(planName, priceId) {
+    const plans = {
+        'FREE': {
+            name: 'FREE',
+            displayName: 'Free Plan',
+            price: 0,
+            currency: 'USD',
+            interval: 'month',
+            features: ['Up to 2 tables', 'Basic QR Menu', 'Digital Ordering']
+        },
+        'PREMIUM': {
+            name: 'PREMIUM',
+            displayName: 'Premium Plan',
+            price: 25,
+            currency: 'USD',
+            interval: 'month',
+            features: [
+                'Unlimited tables',
+                'Advanced analytics',
+                'Priority support',
+                'Voice ordering',
+                'Custom theming',
+                'Inventory management',
+                'White-label solution'
+            ]
+        }
+    };
+
+    return plans[planName] || plans['FREE'];
+}

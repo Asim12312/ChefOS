@@ -22,8 +22,13 @@ const paymentSchema = new mongoose.Schema({
     },
     paymentMethod: {
         type: String,
-        enum: ['CASH', 'STRIPE', 'RAZORPAY'],
+        enum: ['CASH', 'STRIPE', 'SAFEPAY'],
         required: true
+    },
+    paymentType: {
+        type: String,
+        enum: ['ORDER', 'SUBSCRIPTION'],
+        default: 'ORDER'
     },
     status: {
         type: String,
@@ -32,6 +37,8 @@ const paymentSchema = new mongoose.Schema({
     },
     transactionId: String, // Payment gateway transaction ID
     paymentIntentId: String, // Stripe payment intent ID
+    safepayTracker: String, // Safepay tracker ID
+    safepayCheckoutUrl: String, // Safepay checkout URL
     receiptUrl: String,
     metadata: {
         type: Map,
