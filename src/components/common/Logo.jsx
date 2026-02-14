@@ -25,8 +25,8 @@ const Logo = ({ className = "w-auto h-10", iconOnly = false }) => {
                         className="absolute inset-2 bg-primary/20 rounded-2xl blur-xl"
                     />
 
-                    {/* Main Icon Surface */}
-                    <div className="relative w-10 h-10 bg-white dark:bg-zinc-900 rounded-xl border border-black/5 dark:border-white/10 flex items-center justify-center overflow-hidden shadow-2xl">
+                    {/* Main Icon Surface - Enhanced for Dark Mode Visibility */}
+                    <div className="relative w-10 h-10 bg-white dark:bg-zinc-800 rounded-xl border-2 border-black/10 dark:border-white/20 flex items-center justify-center overflow-hidden shadow-2xl">
                         {/* Dynamic SVG Icon */}
                         <svg
                             viewBox="0 0 40 40"

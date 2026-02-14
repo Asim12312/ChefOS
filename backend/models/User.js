@@ -43,6 +43,23 @@ const userSchema = new mongoose.Schema({
         type: Date,
         select: false
     },
+    emailVerified: {
+        type: Boolean,
+        default: false
+    },
+    googleId: {
+        type: String,
+        unique: true,
+        sparse: true
+    },
+    verificationToken: {
+        type: String,
+        select: false
+    },
+    verificationExpires: {
+        type: Date,
+        select: false
+    },
     profileImage: {
         type: String // URL to image
     },
@@ -86,6 +103,20 @@ userSchema.methods.generatePasswordResetOTP = function () {
     return otp; // Return plain OTP for sending via email
 };
 
+// Generate email verification token
+userSchema.methods.generateVerificationToken = function () {
+    // Generate random token
+    const token = crypto.randomBytes(32).toString('hex');
+
+    // Hash token before storing
+    this.verificationToken = crypto.createHash('sha256').update(token).digest('hex');
+
+    // Set expiry to 24 hours
+    this.verificationExpires = Date.now() + 24 * 60 * 60 * 1000;
+
+    return token; // Return plain token for sending via email
+};
+
 // Remove sensitive data from JSON response
 userSchema.methods.toJSON = function () {
     const user = this.toObject();
@@ -93,6 +124,8 @@ userSchema.methods.toJSON = function () {
     delete user.refreshToken;
     delete user.passwordResetToken;
     delete user.passwordResetExpires;
+    delete user.verificationToken;
+    delete user.verificationExpires;
     return user;
 };
 

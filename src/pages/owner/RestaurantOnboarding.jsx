@@ -71,7 +71,47 @@ const RestaurantOnboarding = () => {
         }
     };
 
-    const nextStep = () => setStep(prev => prev + 1);
+    const validateStep = () => {
+        switch (step) {
+            case 1:
+                // Basics: name and description required
+                if (!formData.name || !formData.description) {
+                    toast.error('Please fill in restaurant name and description');
+                    return false;
+                }
+                return true;
+            case 2:
+                // Cuisine: must select a cuisine
+                if (!formData.cuisine) {
+                    toast.error('Please select your restaurant cuisine');
+                    return false;
+                }
+                return true;
+            case 3:
+                // Location: at least city and country required
+                if (!formData.address.city || !formData.address.country) {
+                    toast.error('Please provide at least city and country');
+                    return false;
+                }
+                return true;
+            case 4:
+                // Contact: phone and email required
+                if (!formData.contact.phone || !formData.contact.email) {
+                    toast.error('Please provide business phone and email');
+                    return false;
+                }
+                return true;
+            default:
+                return true;
+        }
+    };
+
+    const nextStep = () => {
+        if (validateStep()) {
+            setStep(prev => prev + 1);
+        }
+    };
+
     const prevStep = () => setStep(prev => prev - 1);
 
     const handleLogoUpload = async (e) => {

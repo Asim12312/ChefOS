@@ -25,7 +25,6 @@ const InventoryManagement = () => {
 
     const [newItem, setNewItem] = useState({
         name: '',
-        sku: '',
         category: 'Produce',
         stockQuantity: 0,
         lowStockThreshold: 10,
@@ -176,7 +175,6 @@ const InventoryManagement = () => {
     const resetNewItem = () => {
         setNewItem({
             name: '',
-            sku: '',
             category: 'Produce',
             stockQuantity: 0,
             lowStockThreshold: 10,
@@ -346,8 +344,6 @@ const InventoryManagement = () => {
                                                     <h3 className="font-black text-xl text-foreground tracking-tight">{item.name}</h3>
                                                     <div className="flex items-center gap-2 mt-1">
                                                         <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">{item.category}</span>
-                                                        <span className="w-1 h-1 rounded-full bg-border" />
-                                                        <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">SKU: {item.sku || 'N/A'}</span>
                                                     </div>
                                                 </div>
                                             </div>
@@ -458,7 +454,7 @@ const InventoryManagement = () => {
                                         {stockAdjustment.type === 'restock' ? 'Restock Item' : 'Record Waste'}
                                     </h3>
                                     <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
-                                        {selectedItem.name} • SKU: {selectedItem.sku || 'N/A'}
+                                        {selectedItem.name}
                                     </p>
                                 </div>
                                 <button onClick={() => setShowStockModal(false)} className="bg-muted/50 text-foreground hover:bg-muted p-2.5 rounded-2xl transition-all active:scale-90">
@@ -599,13 +595,19 @@ const InventoryManagement = () => {
 
                                     <div className="space-y-2">
                                         <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Unit</label>
-                                        <input
-                                            type="text"
+                                        <select
                                             value={newItem.unit}
                                             onChange={(e) => setNewItem({ ...newItem, unit: e.target.value })}
-                                            className="input w-full bg-muted/30 border-2 border-transparent focus:border-primary/50 transition-all font-bold py-4"
-                                            placeholder="kg, liter, pcs, etc."
-                                        />
+                                            className="input w-full bg-muted/30 border-2 border-border focus:border-primary font-bold py-4 px-6 text-foreground appearance-none rounded-2xl"
+                                        >
+                                            <option value="kg" className="bg-card text-foreground">Kg</option>
+                                            <option value="gram" className="bg-card text-foreground">Gram</option>
+                                            <option value="liter" className="bg-card text-foreground">Liter</option>
+                                            <option value="ml" className="bg-card text-foreground">ml</option>
+                                            <option value="piece" className="bg-card text-foreground">Piece</option>
+                                            <option value="box" className="bg-card text-foreground">Box</option>
+                                            <option value="dozen" className="bg-card text-foreground">Dozen</option>
+                                        </select>
                                     </div>
 
                                     <div className="space-y-2">
@@ -621,32 +623,30 @@ const InventoryManagement = () => {
                                     </div>
 
                                     <div className="space-y-2">
-                                        <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Low Stock Alert at</label>
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Low Stock Alert at (Optional)</label>
                                         <input
                                             type="number"
                                             value={newItem.lowStockThreshold}
-                                            onChange={(e) => setNewItem({ ...newItem, lowStockThreshold: parseInt(e.target.value) })}
+                                            onChange={(e) => setNewItem({ ...newItem, lowStockThreshold: parseInt(e.target.value) || 10 })}
                                             className="input w-full bg-muted/30 border-2 border-transparent focus:border-primary/50 transition-all font-bold py-4"
                                             placeholder="10"
-                                            required
                                         />
                                     </div>
 
                                     <div className="space-y-2">
-                                        <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Cost Price ($)</label>
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Cost Price ($) (Optional)</label>
                                         <input
                                             type="number"
                                             step="0.01"
                                             value={newItem.costPrice}
-                                            onChange={(e) => setNewItem({ ...newItem, costPrice: parseFloat(e.target.value) })}
+                                            onChange={(e) => setNewItem({ ...newItem, costPrice: parseFloat(e.target.value) || 0 })}
                                             className="input w-full bg-muted/30 border-2 border-transparent focus:border-primary/50 transition-all font-bold py-4"
                                             placeholder="0.00"
-                                            required
                                         />
                                     </div>
 
                                     <div className="space-y-2">
-                                        <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Supplier</label>
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Supplier (Optional)</label>
                                         <input
                                             type="text"
                                             value={newItem.supplier}

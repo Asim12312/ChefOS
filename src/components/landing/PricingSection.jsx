@@ -3,18 +3,16 @@ import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Check, Globe, Sparkles, ArrowRight, Zap, Star, ShieldCheck, Heart } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
-import { usePaddle } from "@/hooks/usePaddle";
 import AnimatedSection, { StaggerContainer, StaggerItem } from "../ui/animated-section";
 
 const BASE_PRICE = 25;
-const PADDLE_PRICE_ID = import.meta.env.VITE_PADDLE_PREMIUM_PRICE_ID;
 
 const CURRENCY_MAP = {
     USD: { symbol: "$", rate: 1, name: "United States" },
     GBP: { symbol: "£", rate: 0.8, name: "United Kingdom" },
     EUR: { symbol: "€", rate: 0.92, name: "Europe" },
     INR: { symbol: "₹", rate: 83, name: "India" },
-    PKR: { symbol: "Rs. ", rate: 280, name: "Pakistan" },
+    PKR: { symbol: "Rs. ", rate: 120, name: "Pakistan" },
     CAD: { symbol: "C$", rate: 1.35, name: "Canada" },
     AUD: { symbol: "A$", rate: 1.5, name: "Australia" },
 };
@@ -37,7 +35,7 @@ const getPlanFeatures = (isPremium) => {
         "Inventory & Stock Engine",
         "Service Request Hub",
         "Advanced Sales Analytics",
-        "Stripe Payment Integration",
+        "Founding Partner Benefits",
         "Staff Roles (Chef/Admin)",
         "24/7 Priority Support",
     ];
@@ -46,7 +44,6 @@ const getPlanFeatures = (isPremium) => {
 export const PricingSection = () => {
     const navigate = useNavigate();
     const { user } = useAuth();
-    const { openCheckout } = usePaddle();
     const [currency, setCurrency] = useState({ code: "USD", symbol: "$", rate: 1, name: "Global" });
     const [isDetecting, setIsDetecting] = useState(true);
 
@@ -100,22 +97,12 @@ export const PricingSection = () => {
 
     const handlePlanClick = (plan) => {
         if (!user) {
-            navigate("/login");
+            navigate("/register");
             return;
         }
 
         if (plan.name === "Premium") {
-            // If Paddle is not configured, send them to the internal subscription page
-            // which has the "Contact Support/Paddle Review" notice.
-            if (!PADDLE_PRICE_ID || !PADDLE_TOKEN) {
-                navigate("/subscription");
-                return;
-            }
-
-            openCheckout(PADDLE_PRICE_ID, {
-                restaurantId: user.restaurant?._id || user.restaurant || "",
-                email: user.email
-            });
+            navigate("/subscription");
         } else {
             navigate("/dashboard");
         }
@@ -153,15 +140,15 @@ export const PricingSection = () => {
                 {/* Section Header */}
                 <AnimatedSection className="text-center mb-12 sm:mb-16">
                     <div className="flex items-center justify-center gap-2 text-primary font-medium text-sm uppercase tracking-wider mb-3 sm:mb-4">
-                        <Globe className="w-4 h-4" />
-                        <span>Available in {currency.name} ({currency.code})</span>
+                        <Star className="w-4 h-4" />
+                        <span>Founding Partner Offer - First 20 Restaurants</span>
                     </div>
                     <h2 className="font-display text-3xl md:text-5xl font-bold mb-4 sm:mb-6 leading-tight">
                         Simple, Transparent{" "}
                         <span className="text-gradient">Pricing</span>
                     </h2>
                     <p className="text-muted-foreground text-base sm:text-lg max-w-2xl mx-auto leading-relaxed">
-                        Choose the plan that fits your restaurant. All plans include a 14-day free trial.
+                        Join as a founding partner. Manual activation and personal onboarding for a limited time.
                     </p>
                 </AnimatedSection>
 
@@ -318,8 +305,6 @@ export const PricingSection = () => {
                     </p>
                 </AnimatedSection>
             </div>
-
-
         </section>
     );
 };

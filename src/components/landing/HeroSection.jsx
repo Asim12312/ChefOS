@@ -84,14 +84,15 @@ export const HeroSection = () => {
                                 </Link>
                             </motion.div>
 
-                            <motion.button
-                                whileHover={{ scale: 1.05 }}
-                                whileTap={{ scale: 0.95 }}
-                                className="text-sm sm:text-base h-11 sm:h-12 px-5 sm:px-6 gap-2 inline-flex items-center justify-center border border-border/50 bg-background/50 hover:bg-muted/50 backdrop-blur-sm rounded-xl transition-all hover:border-border"
-                            >
-                                <Play className="w-4 h-4 fill-current" />
-                                Watch Demo
-                            </motion.button>
+                            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                                <Link
+                                    to="/demo"
+                                    className="text-sm sm:text-base h-11 sm:h-12 px-5 sm:px-6 gap-2 inline-flex items-center justify-center border border-border/50 bg-background/50 hover:bg-muted/50 backdrop-blur-sm rounded-xl transition-all hover:border-border"
+                                >
+                                    <Play className="w-4 h-4 fill-current" />
+                                    Watch Demo
+                                </Link>
+                            </motion.div>
                         </motion.div>
 
                         {/* Note removed */}

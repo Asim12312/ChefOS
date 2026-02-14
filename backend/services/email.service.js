@@ -18,9 +18,9 @@ export const sendPasswordResetOTP = async (email, otp, userName) => {
         const transporter = createTransporter();
 
         const mailOptions = {
-            from: process.env.EMAIL_FROM || '"MenuSphere" <noreply@menusphere.com>',
+            from: process.env.EMAIL_FROM || '"ChefOS" <noreply@chefos.pro>',
             to: email,
-            subject: 'Password Reset OTP - MenuSphere',
+            subject: 'Password Reset OTP - ChefOS',
             html: `
                 <!DOCTYPE html>
                 <html>
@@ -28,10 +28,10 @@ export const sendPasswordResetOTP = async (email, otp, userName) => {
                     <style>
                         body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
                         .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-                        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+                        .header { background: linear-gradient(135deg, #18181b 0%, #3f3f46 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
                         .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
-                        .otp-box { background: white; border: 2px dashed #667eea; padding: 20px; text-align: center; margin: 20px 0; border-radius: 8px; }
-                        .otp-code { font-size: 32px; font-weight: bold; color: #667eea; letter-spacing: 8px; }
+                        .otp-box { background: white; border: 2px dashed #eab308; padding: 20px; text-align: center; margin: 20px 0; border-radius: 8px; }
+                        .otp-code { font-size: 32px; font-weight: bold; color: #eab308; letter-spacing: 8px; }
                         .warning { background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0; border-radius: 4px; }
                         .footer { text-align: center; margin-top: 30px; color: #666; font-size: 12px; }
                     </style>
@@ -59,17 +59,17 @@ export const sendPasswordResetOTP = async (email, otp, userName) => {
                             </div>
 
                             <p>If you need help, contact our support team.</p>
-                            <p>Best regards,<br><strong>MenuSphere Team</strong></p>
+                            <p>Best regards,<br><strong>ChefOS Team</strong></p>
                         </div>
                         <div class="footer">
-                            <p>© ${new Date().getFullYear()} MenuSphere. All rights reserved.</p>
+                            <p>© ${new Date().getFullYear()} ChefOS. All rights reserved.</p>
                             <p>This is an automated email, please do not reply.</p>
                         </div>
                     </div>
                 </body>
                 </html>
             `,
-            text: `Hello ${userName},\n\nYour password reset OTP is: ${otp}\n\nThis code is valid for 10 minutes.\n\nIf you didn't request this, please ignore this email.\n\nBest regards,\nMenuSphere Team`
+            text: `Hello ${userName},\n\nYour password reset OTP is: ${otp}\n\nThis code is valid for 10 minutes.\n\nIf you didn't request this, please ignore this email.\n\nBest regards,\nChefOS Team`
         };
 
         const info = await transporter.sendMail(mailOptions);
@@ -78,7 +78,6 @@ export const sendPasswordResetOTP = async (email, otp, userName) => {
     } catch (error) {
         logger.error(`Email sending error: ${error.message}`);
 
-        // Development fallback: Log OTP to console if email fails
         if (process.env.NODE_ENV === 'development') {
             logger.warn('⚠️  EMAIL FAILED (Using Dev Fallback)');
             logger.warn(`📧 To: ${email}`);
@@ -90,15 +89,16 @@ export const sendPasswordResetOTP = async (email, otp, userName) => {
     }
 };
 
-// Send welcome email (optional)
-export const sendWelcomeEmail = async (email, userName) => {
+// Send Email Verification
+export const sendVerificationEmail = async (email, token, userName) => {
     try {
         const transporter = createTransporter();
+        const verificationUrl = `${process.env.CLIENT_URL || 'https://chefos.pro'}/verify-email?token=${token}`;
 
         const mailOptions = {
-            from: process.env.EMAIL_FROM || '"MenuSphere" <noreply@menusphere.com>',
+            from: process.env.EMAIL_FROM || '"ChefOS" <noreply@chefos.pro>',
             to: email,
-            subject: 'Welcome to MenuSphere! 🎉',
+            subject: 'Verify Your Email - ChefOS',
             html: `
                 <!DOCTYPE html>
                 <html>
@@ -106,21 +106,91 @@ export const sendWelcomeEmail = async (email, userName) => {
                     <style>
                         body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
                         .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-                        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 40px; text-align: center; border-radius: 10px 10px 0 0; }
-                        .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
+                        .header { background: linear-gradient(135deg, #18181b 0%, #3f3f46 100%); color: white; padding: 40px; text-align: center; border-radius: 10px 10px 0 0; }
+                        .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; text-align: center; }
+                        .button { display: inline-block; padding: 15px 30px; background-color: #eab308; color: #000; text-decoration: none; border-radius: 8px; font-weight: bold; margin: 20px 0; }
+                        .footer { text-align: center; margin-top: 30px; color: #666; font-size: 12px; }
                     </style>
                 </head>
                 <body>
                     <div class="container">
                         <div class="header">
-                            <h1>🎉 Welcome to MenuSphere!</h1>
+                            <h1>📧 Verify Your Email</h1>
                         </div>
                         <div class="content">
                             <p>Hello <strong>${userName}</strong>,</p>
-                            <p>Thank you for joining MenuSphere - your all-in-one smart restaurant management platform!</p>
-                            <p>You can now enjoy features like QR menu, table ordering, real-time KDS, and much more.</p>
+                            <p>Thank you for signing up with ChefOS! To complete your registration and start managing your restaurant, please verify your email address by clicking the button below:</p>
+                            
+                            <a href="${verificationUrl}" class="button">Verify Email Address</a>
+
+                            <p>Or copy and paste this link into your browser:</p>
+                            <p style="word-break: break-all; color: #6366f1;">${verificationUrl}</p>
+
+                            <p>This link will expire in 24 hours.</p>
+                            <p>Best regards,<br><strong>ChefOS Team</strong></p>
+                        </div>
+                        <div class="footer">
+                            <p>© ${new Date().getFullYear()} ChefOS. All rights reserved.</p>
+                        </div>
+                    </div>
+                </body>
+                </html>
+            `,
+            text: `Hello ${userName},\n\nPlease verify your email address by clicking this link: ${verificationUrl}\n\nBest regards,\nChefOS Team`
+        };
+
+        const info = await transporter.sendMail(mailOptions);
+        logger.info(`Verification email sent: ${info.messageId}`);
+        return { success: true, messageId: info.messageId };
+    } catch (error) {
+        logger.error(`Verification email error: ${error.message}`);
+
+        if (process.env.NODE_ENV === 'development') {
+            logger.warn('⚠️  VERIFICATION EMAIL FAILED (Using Dev Fallback)');
+            logger.warn(`📧 To: ${email}`);
+            logger.warn(`🔗 Link: ${process.env.CLIENT_URL}/verify-email?token=${token}`);
+            return { success: true, messageId: 'dev-fallback' };
+        }
+
+        throw new Error('Failed to send verification email');
+    }
+};
+
+// Send welcome email
+export const sendWelcomeEmail = async (email, userName) => {
+    try {
+        const transporter = createTransporter();
+
+        const mailOptions = {
+            from: process.env.EMAIL_FROM || '"ChefOS" <noreply@chefos.pro>',
+            to: email,
+            subject: 'Welcome to ChefOS! 🎉',
+            html: `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <style>
+                        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                        .header { background: linear-gradient(135deg, #18181b 0%, #3f3f46 100%); color: white; padding: 40px; text-align: center; border-radius: 10px 10px 0 0; }
+                        .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
+                        .footer { text-align: center; margin-top: 30px; color: #666; font-size: 12px; }
+                    </style>
+                </head>
+                <body>
+                    <div class="container">
+                        <div class="header">
+                            <h1>🎉 Welcome to ChefOS!</h1>
+                        </div>
+                        <div class="content">
+                            <p>Hello <strong>${userName}</strong>,</p>
+                            <p>Your email has been successfully verified! Welcome to ChefOS - your all-in-one smart restaurant management platform.</p>
+                            <p>You can now log in and start configuring your digital restaurant, managing your menu, and tracking orders in real-time.</p>
                             <p>If you have any questions, feel free to reach out to our support team.</p>
-                            <p>Best regards,<br><strong>MenuSphere Team</strong></p>
+                            <p>Best regards,<br><strong>ChefOS Team</strong></p>
+                        </div>
+                        <div class="footer">
+                            <p>© ${new Date().getFullYear()} ChefOS. All rights reserved.</p>
                         </div>
                     </div>
                 </body>
@@ -131,6 +201,5 @@ export const sendWelcomeEmail = async (email, userName) => {
         await transporter.sendMail(mailOptions);
     } catch (error) {
         logger.error(`Welcome email error: ${error.message}`);
-        // Don't throw - welcome email failure shouldn't block registration
     }
 };
