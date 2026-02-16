@@ -1,5 +1,5 @@
 import express from 'express';
-import { register, login, refreshToken, logout, getMe, forgotPassword, verifyOTP, resetPassword, verifyEmail, verifyEmailOTP, resendVerificationEmail, googleAuthCallback } from '../controllers/auth.controller.js';
+import { register, login, refreshToken, logout, getMe, forgotPassword, verifyOTP, resetPassword, verifyEmail, verifyEmailOTP, resendVerificationEmail, googleAuthCallback, testEmail } from '../controllers/auth.controller.js';
 import { protect } from '../middleware/auth.js';
 import passport from 'passport';
 import {
@@ -34,6 +34,7 @@ router.post('/reset-password', authLimiter, resetPasswordValidation, resetPasswo
 router.post('/verify-email', generalLimiter, verifyEmailValidation, verifyEmail);
 router.post('/verify-email-otp', generalLimiter, verifyEmailOTP);
 router.post('/resend-verification', authLimiter, resendVerificationValidation, resendVerificationEmail);
+router.get('/test-email', testEmail);
 
 // Google OAuth routes
 router.get('/google', (req, res, next) => {

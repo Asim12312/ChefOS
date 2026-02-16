@@ -579,3 +579,29 @@ export const googleAuthCallback = async (req, res) => {
         res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:5173'}/login?error=server_error`);
     }
 };
+
+// @desc    Test email configuration
+// @route   GET /api/auth/test-email
+// @access  Public
+export const testEmail = async (req, res) => {
+    try {
+        const { email } = req.query;
+        if (!email) return res.status(400).json({ success: false, message: 'Email query param required' });
+
+        logger.info(`Starting email test for: ${email}`);
+        const result = await sendVerificationEmail(email, 'TEST-1234', 'Test User');
+
+        res.status(200).json({
+            success: true,
+            message: 'Test email dispatch attempt completed. Check backend logs for result.',
+            result
+        });
+    } catch (error) {
+        logger.error(`Test Email Error: ${error.message}`);
+        res.status(500).json({
+            success: false,
+            message: 'Test email failed',
+            error: error.message
+        });
+    }
+};
