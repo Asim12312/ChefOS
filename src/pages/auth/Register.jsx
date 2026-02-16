@@ -5,6 +5,7 @@ import { UserPlus, ArrowRight, Store, ChefHat, Check, X, CheckCircle2, Mail } fr
 import { motion, AnimatePresence } from 'framer-motion';
 import Logo from "../../components/common/Logo";
 import ThemeToggle from '../../components/common/ThemeToggle';
+import toast from 'react-hot-toast';
 
 const Register = () => {
     const [formData, setFormData] = useState({
