@@ -5,8 +5,12 @@ import logger from '../utils/logger.js';
 // Create a Resend client helper if API key exists
 const sendViaResend = async (mailOptions) => {
     try {
+        // Resend Free Tier requires 'onboarding@resend.dev' as the from address 
+        // unless you have verified your own custom domain.
+        const fromAddress = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
+
         const response = await axios.post('https://api.resend.com/emails', {
-            from: mailOptions.from,
+            from: fromAddress,
             to: mailOptions.to,
             subject: mailOptions.subject,
             html: mailOptions.html,
