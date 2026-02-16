@@ -13,17 +13,40 @@ const ReceiptTemplate = forwardRef(({ order }, ref) => {
                 __html: `
                 @media print {
                     @page { margin: 0; size: auto; }
-                    body { margin: 1cm; background: white !important; }
+                    body { margin: 0; padding: 20px; background: white !important; }
                     .no-print { display: none !important; }
-                    #thermal-receipt { display: block !important; width: 100% !important; max-width: 100% !important; }
+                    #thermal-receipt { 
+                        display: block !important; 
+                        width: 300px !important; 
+                        margin: 0 auto !important;
+                        padding: 20px !important;
+                        color: black !important;
+                        background: white !important;
+                        box-shadow: none !important;
+                    }
                 }
             `}} />
 
+
             <div className="text-center mb-6">
-                <h2 className="text-2xl font-bold uppercase mb-1">{order.restaurant?.name || 'CHEFOS RESTAURANT'}</h2>
-                <p className="text-xs opacity-70">Order ID: #{order.orderNumber?.split('-')[2] || order._id?.slice(-6).toUpperCase()}</p>
-                <p className="text-xs opacity-70">{new Date(order.createdAt).toLocaleString()}</p>
+                <h2 className="text-2xl font-bold uppercase mb-2">{order.restaurant?.name || 'Restaurant Name'}</h2>
+                {order.restaurant?.address && (
+                    <p className="text-xs opacity-70 mb-1">{order.restaurant.address}</p>
+                )}
+                <div className="text-xs opacity-70 mb-2">
+                    {order.restaurant?.phone && <span>Tel: {order.restaurant.phone}</span>}
+                    {order.restaurant?.phone && order.restaurant?.email && <span> | </span>}
+                    {order.restaurant?.email && <span>{order.restaurant.email}</span>}
+                </div>
+                <div className="border-t border-black/20 my-2" />
+                <p className="font-bold text-base mt-2">RECEIPT</p>
+                <p className="text-xs opacity-70 mt-1">Order #{order.orderNumber?.split('-')[2] || order._id?.slice(-6).toUpperCase()}</p>
+                <p className="text-xs opacity-70">{new Date(order.createdAt).toLocaleString('en-US', {
+                    dateStyle: 'medium',
+                    timeStyle: 'short'
+                })}</p>
             </div>
+
 
             <div className="border-b-2 border-dashed border-black/20 my-4" />
 
@@ -32,12 +55,14 @@ const ReceiptTemplate = forwardRef(({ order }, ref) => {
                 <span>{order.orderSource || 'POS'}</span>
             </div>
 
-            <div className="space-y-2 mb-6">
+            <div className="space-y-3 mb-6">
                 {order.items.map((item, idx) => (
-                    <div key={idx} className="flex justify-between">
-                        <div className="flex gap-2">
-                            <span>{item.quantity}x</span>
-                            <span className="truncate max-w-[180px]">{item.name}</span>
+                    <div key={idx} className="flex justify-between items-start text-xs">
+                        <div className="flex-1 pr-4">
+                            <div className="flex gap-2">
+                                <span className="font-bold">{item.quantity}x</span>
+                                <span>{item.name}</span>
+                            </div>
                         </div>
                         <span className="font-bold">${((item.price || 0) * item.quantity).toFixed(2)}</span>
                     </div>

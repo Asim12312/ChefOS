@@ -5,7 +5,8 @@ import api from '../../config/api';
 import toast from 'react-hot-toast';
 
 const CustomerComplaints = () => {
-    const { restaurantId } = useOutletContext();
+    const { restaurant } = useOutletContext();
+    const restaurantId = restaurant?._id;
     const navigate = useNavigate();
 
     const [issueType, setIssueType] = useState("");

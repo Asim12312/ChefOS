@@ -10,6 +10,7 @@ import {
     cancelSubscription,
     getBillingPortal
 } from '../controllers/payment.controller.js';
+import { createManualBill } from '../controllers/manualBill.controller.js';
 import { protect, authorize } from '../middleware/auth.js';
 
 const router = express.Router();
@@ -19,6 +20,7 @@ router.post('/create', createPaymentIntent);
 router.post('/verify', verifyPayment);
 router.get('/methods', getPaymentMethods);
 router.get('/history/:restaurantId', protect, authorize('OWNER', 'ADMIN'), getPaymentHistory);
+router.post('/manual-bill', protect, authorize('OWNER', 'ADMIN'), createManualBill);
 
 // Webhook routes (raw body parsing)
 router.post('/webhook/stripe', express.raw({ type: 'application/json' }), handleStripeWebhook);

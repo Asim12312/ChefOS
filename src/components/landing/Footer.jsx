@@ -8,7 +8,7 @@ const footerLinks = {
     product: [
         { name: "Features", href: "#features", isHash: true },
         { name: "Pricing", href: "#pricing", isHash: true },
-        { name: "Demo", href: "/demo", isHash: false },
+        { name: "Demo", href: "#demo", isHash: true },
     ],
     legal: [
         { name: "Privacy", href: "/privacy", isHash: false },
@@ -46,7 +46,7 @@ export const Footer = ({ onOpenContactModal }) => {
                                 onClick={onOpenContactModal}
                                 className="h-11 sm:h-12 px-6 sm:px-8 rounded-xl border border-background/20 text-sm sm:text-base hover:bg-background/5 transition-colors inline-flex items-center justify-center whitespace-nowrap"
                             >
-                                Contact Sales
+                                Contact
                             </motion.button>
                         </div>
                     </AnimatedSection>

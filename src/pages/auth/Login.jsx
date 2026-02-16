@@ -12,8 +12,20 @@ const Login = () => {
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [notVerified, setNotVerified] = useState(false);
+    const [resendTimer, setResendTimer] = useState(0);
     const { login, resendVerification, setUser, checkRestaurantStatus, user: authUser } = useAuth();
     const navigate = useNavigate();
+
+    // Timer logic for resend email
+    useEffect(() => {
+        let interval;
+        if (resendTimer > 0) {
+            interval = setInterval(() => {
+                setResendTimer((prev) => prev - 1);
+            }, 1000);
+        }
+        return () => clearInterval(interval);
+    }, [resendTimer]);
 
     // Handle social login redirect tokens and errors
     useEffect(() => {
@@ -240,11 +252,14 @@ const Login = () => {
                                         Your email is not verified yet. Please check your inbox.
                                     </p>
                                     <button
-                                        onClick={handleResend}
-                                        disabled={loading}
-                                        className="text-primary text-xs font-bold uppercase tracking-widest hover:underline text-left flex items-center gap-2"
+                                        onClick={() => {
+                                            handleResend();
+                                            setResendTimer(40);
+                                        }}
+                                        disabled={loading || resendTimer > 0}
+                                        className="text-primary text-xs font-bold uppercase tracking-widest hover:underline text-left flex items-center gap-2 disabled:opacity-50 disabled:no-underline"
                                     >
-                                        {loading ? 'Sending...' : 'Resend Verification Link'}
+                                        {loading ? 'Sending...' : resendTimer > 0 ? `Resend in ${resendTimer}s` : 'Resend Verification Link'}
                                     </button>
                                 </div>
                             </motion.div>

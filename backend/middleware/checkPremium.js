@@ -58,7 +58,7 @@ export const checkPremiumPublic = async (req, res, next) => {
             });
         }
 
-        const restaurant = await Restaurant.findById(restaurantId);
+        const restaurant = await Restaurant.findById(restaurantId).populate('subscription');
 
         if (!restaurant) {
             return res.status(404).json({

@@ -3,6 +3,7 @@ import { Navbar } from '../components/landing/Navbar';
 import { HeroSection } from '../components/landing/HeroSection';
 import { FeaturesSection } from '../components/landing/FeaturesSection';
 import { HowItWorksSection } from '../components/landing/HowItWorksSection';
+import { DemoSection } from '../components/landing/DemoSection';
 import { DemoMenuSection } from '../components/landing/DemoMenuSection';
 import { TestimonialsSection } from '../components/landing/TestimonialsSection';
 import { PricingSection } from '../components/landing/PricingSection';
@@ -16,12 +17,15 @@ export default function Landing() {
     return (
         <div className="min-h-screen bg-background overflow-x-hidden">
             <ScrollToTop />
-            <Navbar />
+            <Navbar onOpenContactModal={() => setIsContactModalOpen(true)} />
             <main>
                 <HeroSection />
                 <FeaturesSection />
                 <HowItWorksSection onOpenContactModal={() => setIsContactModalOpen(true)} />
-                <DemoMenuSection />
+                <div id="demo">
+                    <DemoSection />
+                    <DemoMenuSection />
+                </div>
                 <TestimonialsSection />
                 <PricingSection />
             </main>

@@ -96,15 +96,10 @@ export const PricingSection = () => {
     }, []);
 
     const handlePlanClick = (plan) => {
-        if (!user) {
-            navigate("/register");
-            return;
-        }
-
-        if (plan.name === "Premium") {
-            navigate("/subscription");
-        } else {
-            navigate("/dashboard");
+        // Since it's manual activation, scroll to contact
+        const contactSection = document.getElementById('contact');
+        if (contactSection) {
+            contactSection.scrollIntoView({ behavior: 'smooth' });
         }
     };
 

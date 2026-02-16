@@ -24,8 +24,7 @@ const orderSchema = new mongoose.Schema({
     },
     table: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Table',
-        required: true
+        ref: 'Table'
     },
     orderNumber: {
         type: String,

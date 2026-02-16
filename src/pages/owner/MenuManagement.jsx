@@ -501,8 +501,13 @@ const MenuManagement = () => {
                                         <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 py-5 bg-muted/50 text-foreground font-black uppercase tracking-widest rounded-[2rem] border-4 border-border/50 hover:bg-muted transition-all active:scale-95 text-xs">
                                             Discard
                                         </button>
-                                        <button form="menu-form" type="submit" className="flex-[2] py-5 bg-primary text-primary-foreground font-black uppercase tracking-widest rounded-[2rem] shadow-2xl shadow-primary/30 hover:brightness-110 transition-all active:scale-95 text-xs">
-                                            Publish Changes
+                                        <button
+                                            form="menu-form"
+                                            type="submit"
+                                            disabled={createMutation.isPending || updateMutation.isPending}
+                                            className="flex-[2] py-5 bg-primary text-primary-foreground font-black uppercase tracking-widest rounded-[2rem] shadow-2xl shadow-primary/30 hover:brightness-110 transition-all active:scale-95 text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                                        >
+                                            {createMutation.isPending || updateMutation.isPending ? 'Saving...' : 'Publish Changes'}
                                         </button>
                                     </div>
                                 </motion.div>

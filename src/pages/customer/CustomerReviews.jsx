@@ -10,22 +10,14 @@ const CustomerReviews = () => {
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
     const queryClient = useQueryClient();
-    const { restaurantId } = useOutletContext();
+    const { restaurant } = useOutletContext();
+    const restaurantId = restaurant?._id;
     const orderId = searchParams.get('order');
 
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [rating, setRating] = useState(5);
     const [comment, setComment] = useState('');
     const [name, setName] = useState('');
-
-    const { data: restaurant } = useQuery({
-        queryKey: ['restaurant', restaurantId],
-        queryFn: async () => {
-            const res = await api.get(`/restaurant/${restaurantId}`);
-            return res.data.data;
-        },
-        enabled: !!restaurantId
-    });
 
     const { data: reviewData, isLoading } = useQuery({
         queryKey: ['reviews', restaurantId],
@@ -66,8 +58,8 @@ const CustomerReviews = () => {
         }
 
         submitReview.mutate({
-            restaurantId: cleanRestaurantId,
-            orderId: cleanOrderId,
+            restaurant: cleanRestaurantId,
+            order: cleanOrderId,
             rating,
             comment,
             customerName: name

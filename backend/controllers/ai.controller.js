@@ -65,8 +65,8 @@ Your goal is to help customers navigate the menu, make recommendations based on 
 ### Restaurant Context:
 Name: ${restaurant.name}
 Description: ${restaurant.description}
-Address: ${restaurant.address}
-Cuisine: ${restaurant.cuisineType}
+Address: ${restaurant.address ? `${restaurant.address.street || ''}, ${restaurant.address.city || ''}, ${restaurant.address.state || ''}` : 'N/A'}
+Cuisine: ${restaurant.cuisine || 'N/A'}
 
 ### Available Menu:
 ${menuContext}
@@ -85,8 +85,8 @@ ${history ? JSON.stringify(history) : 'No previous history.'}
 Customer's current message: "${message}"
 `;
 
-        // Use gemini-flash-latest as it's authorized for this API key
-        const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
+        // Use gemini-1.5-flash as it's the standard recommended model
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
         const result = await model.generateContent(systemPrompt);
         const responseText = result.response.text();
@@ -98,6 +98,7 @@ Customer's current message: "${message}"
         });
     } catch (error) {
         logger.error(`Chef AI Error: ${error.message}`);
+        console.error('FULL AI ERROR:', error);
 
         // Return a more descriptive error in development to help debugging
         const errorMessage = error.message || 'An error occurred while communicating with Chef AI';

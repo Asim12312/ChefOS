@@ -117,6 +117,20 @@ userSchema.methods.generateVerificationToken = function () {
     return token; // Return plain token for sending via email
 };
 
+// Generate email verification OTP
+userSchema.methods.generateEmailVerificationOTP = function () {
+    // Generate 6-digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+    // Hash OTP before storing
+    this.verificationToken = crypto.createHash('sha256').update(otp).digest('hex');
+
+    // Set expiry to 15 minutes
+    this.verificationExpires = Date.now() + 15 * 60 * 1000;
+
+    return otp; // Return plain OTP for sending via email
+};
+
 // Remove sensitive data from JSON response
 userSchema.methods.toJSON = function () {
     const user = this.toObject();

@@ -7,11 +7,12 @@ import ThemeToggle from "../common/ThemeToggle";
 
 const navLinks = [
     { name: "Features", href: "#features", isHash: true },
-    { name: "Demo", href: "/demo", isHash: false },
+    { name: "Demo", href: "#demo", isHash: true },
     { name: "Pricing", href: "#pricing", isHash: true },
+    { name: "Contact", href: "#contact", isHash: true },
 ];
 
-export const Navbar = () => {
+export const Navbar = ({ onOpenContactModal }) => {
     const [isScrolled, setIsScrolled] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -72,6 +73,7 @@ export const Navbar = () => {
                         {/* CTA Buttons */}
                         <div className="hidden md:flex items-center gap-4">
                             <ThemeToggle className="mr-2" />
+
                             <Link to="/login" className="font-medium text-muted-foreground hover:text-foreground transition-colors">
                                 Sign In
                             </Link>
@@ -154,6 +156,13 @@ export const Navbar = () => {
                                         <span className="text-sm font-medium text-muted-foreground">Appearance</span>
                                         <ThemeToggle />
                                     </div>
+                                    <a
+                                        href="#contact"
+                                        className="px-6 py-2 text-center border border-border rounded-xl hover:bg-muted transition-colors"
+                                        onClick={() => setIsMobileMenuOpen(false)}
+                                    >
+                                        Contact
+                                    </a>
                                     <Link to="/login" className="px-6 py-2 text-center border border-border rounded-xl hover:bg-muted transition-colors" onClick={() => setIsMobileMenuOpen(false)}>
                                         Sign In
                                     </Link>

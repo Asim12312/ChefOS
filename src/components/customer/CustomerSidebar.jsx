@@ -89,7 +89,10 @@ const CustomerSidebar = ({ isOpen, onClose, restaurant, tableId }) => {
                         {/* Navigation Links */}
                         <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
                             {links.map((link) => {
-                                const isActive = location.pathname === link.path.split('?')[0]; // Simple active check
+                                // Improved active check to handle query params and sub-paths
+                                const currentPath = location.pathname;
+                                const linkPath = link.path.split('?')[0];
+                                const isActive = currentPath === linkPath || (linkPath !== '/' && currentPath.startsWith(linkPath));
                                 return (
                                     <Link
                                         key={link.name}

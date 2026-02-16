@@ -19,6 +19,12 @@ const FloatingActionMenu = ({ restaurant, tableId, openChefAI }) => {
     };
 
     const handleCallWaiter = async () => {
+        const orderId = localStorage.getItem('tablefy_last_order_id');
+        if (!orderId) {
+            toast.error("Please place an order first to call a waiter.");
+            return;
+        }
+
         if (!tableId || !restaurant?._id) {
             toast.error('Table information not available');
             return;
@@ -44,6 +50,12 @@ const FloatingActionMenu = ({ restaurant, tableId, openChefAI }) => {
     };
 
     const handleRequestBill = async () => {
+        const orderId = localStorage.getItem('tablefy_last_order_id');
+        if (!orderId) {
+            toast.error("Please place an order first to request the bill.");
+            return;
+        }
+
         if (!tableId || !restaurant?._id) {
             toast.error('Table information not available');
             return;

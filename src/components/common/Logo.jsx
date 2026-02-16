@@ -70,7 +70,7 @@ const Logo = ({ className = "w-auto h-10", iconOnly = false }) => {
 
             {!iconOnly && (
                 <div className="flex flex-col -space-y-1">
-                    <span className="font-logo-stylish text-3xl font-black tracking-tight bg-gradient-to-br from-gray-950 via-gray-800 to-gray-900 dark:from-white dark:via-gray-100 dark:to-gray-400 bg-clip-text text-transparent drop-shadow-sm font-logo-stylish">
+                    <span className="font-logo-stylish text-3xl font-black tracking-tight bg-gradient-to-br from-black via-zinc-900 to-zinc-800 dark:from-white dark:via-zinc-100 dark:to-zinc-300 bg-clip-text text-transparent drop-shadow-sm font-logo-stylish">
                         Chef<span className="text-primary italic">OS</span>
                     </span>
                     <span className="text-[7.5px] font-black uppercase tracking-[0.35em] text-gray-500/80 dark:text-gray-400/80 pl-1">

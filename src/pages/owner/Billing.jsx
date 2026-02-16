@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../config/api';
 import {
@@ -11,6 +11,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Sidebar from '../../components/dashboard/Sidebar';
 import Header from '../../components/dashboard/Header';
 import ReceiptTemplate from '../../components/common/ReceiptTemplate';
+import ManualBillModal from '../../components/billing/ManualBillModal';
 import toast from 'react-hot-toast';
 
 const Billing = () => {
@@ -19,6 +20,7 @@ const Billing = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [dateFilter, setDateFilter] = useState('today'); // today, week, month, all
     const [selectedBill, setSelectedBill] = useState(null);
+    const [showManualBillModal, setShowManualBillModal] = useState(false);
 
     const restaurantId = useMemo(() => {
         if (!user?.restaurant) return null;
@@ -75,6 +77,69 @@ const Billing = () => {
         }, 100);
     };
 
+    const exportToCSV = () => {
+        if (filteredBills.length === 0) {
+            toast.error('No bills to export');
+            return;
+        }
+
+        const headers = ['Order Number', 'Date', 'Table', 'Items Count', 'Payment Status', 'Total'];
+        const rows = filteredBills.map(bill => [
+            bill.orderNumber,
+            new Date(bill.createdAt).toLocaleString(),
+            bill.table?.name || 'Takeout',
+            bill.items.reduce((acc, current) => acc + current.quantity, 0),
+            bill.paymentStatus,
+            bill.total.toFixed(2)
+        ]);
+
+        const csvContent = [
+            headers.join(','),
+            ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+        ].join('\n');
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', `bills_${new Date().toISOString().split('T')[0]}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        toast.success('Bills exported successfully!');
+    };
+
+    const queryClient = useQueryClient();
+
+    // Fetch Pending Bill Requests
+    const { data: billRequests = [] } = useQuery({
+        queryKey: ['billRequests', restaurantId],
+        queryFn: async () => {
+            if (!restaurantId) return [];
+            const res = await api.get(`/service?status=PENDING&restaurant=${restaurantId}`);
+            return res.data.data.filter(req => req.type === 'REQUEST_BILL');
+        },
+        enabled: !!restaurantId,
+        refetchInterval: 10000
+    });
+
+    const updateRequestMutation = useMutation({
+        mutationFn: ({ id, status }) => api.patch(`/service/${id}`, { status }),
+        onSuccess: () => {
+            queryClient.invalidateQueries(['billRequests']);
+            toast.success('Request updated');
+        }
+    });
+
+    // ... existing bills query ...
+
+    // ... existing filteredBills useMemo ...
+
+    // ... existing handlePrint ...
+
+    // ... existing exportToCSV ...
+
     if (isLoading) return (
         <div className="flex bg-background min-h-screen">
             <Sidebar className={mobileMenuOpen ? "flex fixed inset-y-0 left-0 z-50 w-64 bg-card shadow-2xl" : "hidden lg:flex"} />
@@ -89,14 +154,48 @@ const Billing = () => {
     );
 
     return (
-        <div className="flex bg-background min-h-screen text-foreground">
-            <Sidebar open={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)} />
+        <div className="flex bg-background min-h-screen text-foreground print:bg-white print:text-black">
+            <Sidebar open={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)} className="print:hidden" />
 
             <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-                <Header onMobileMenuClick={() => setMobileMenuOpen(true)} />
+                <Header onMobileMenuClick={() => setMobileMenuOpen(true)} className="print:hidden" />
 
-                <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
-                    <div className="max-w-7xl mx-auto space-y-6">
+                <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 print:p-0">
+                    <div className="max-w-7xl mx-auto space-y-6 print:hidden">
+
+                        {/* Pending Bill Requests Alert Section */}
+                        <AnimatePresence>
+                            {billRequests.length > 0 && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: -20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: -20 }}
+                                    className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-6 mb-6"
+                                >
+                                    <h3 className="text-emerald-500 font-bold mb-4 flex items-center gap-2">
+                                        <DollarSign className="animate-bounce" />
+                                        Pending Bill Requests ({billRequests.length})
+                                    </h3>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                        {billRequests.map(req => (
+                                            <div key={req._id} className="bg-card p-4 rounded-xl border border-border flex justify-between items-center shadow-sm">
+                                                <div>
+                                                    <p className="font-bold text-lg">{req.table?.name || 'Unknown Table'}</p>
+                                                    <p className="text-xs text-muted-foreground">{new Date(req.createdAt).toLocaleTimeString()}</p>
+                                                </div>
+                                                <button
+                                                    onClick={() => updateRequestMutation.mutate({ id: req._id, status: 'COMPLETED' })}
+                                                    className="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-bold transition-colors"
+                                                >
+                                                    Mark Done
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+
                         {/* Page Header */}
                         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                             <div>
@@ -107,7 +206,17 @@ const Billing = () => {
                                 <p className="text-muted-foreground mt-1">Manage, view and print customer receipts</p>
                             </div>
                             <div className="flex items-center gap-2">
-                                <button className="btn-secondary px-4 py-2 flex items-center gap-2 text-sm">
+                                <button
+                                    onClick={() => setShowManualBillModal(true)}
+                                    className="btn-primary px-4 py-2 flex items-center gap-2 text-sm"
+                                >
+                                    <Receipt size={18} />
+                                    Manual Bill
+                                </button>
+                                <button
+                                    onClick={exportToCSV}
+                                    className="btn-secondary px-4 py-2 flex items-center gap-2 text-sm"
+                                >
                                     <Download size={18} />
                                     Export CSV
                                 </button>
@@ -251,9 +360,26 @@ const Billing = () => {
                         </div>
 
                         {/* Hidden Receipt for Printing */}
-                        <div className="hidden">
+                        <div className="hidden print:block">
                             {selectedBill && <ReceiptTemplate order={selectedBill} />}
                         </div>
+
+                        {/* Manual Bill Modal */}
+                        {showManualBillModal && (
+                            <ManualBillModal
+                                restaurantId={restaurantId}
+                                onClose={() => setShowManualBillModal(false)}
+                                onSuccess={(bill) => {
+                                    setSelectedBill(bill);
+                                    setShowManualBillModal(false);
+                                    toast.success('Manual bill created!');
+                                    // Trigger print after a short delay
+                                    setTimeout(() => {
+                                        window.print();
+                                    }, 300);
+                                }}
+                            />
+                        )}
                     </div>
                 </main>
             </div>

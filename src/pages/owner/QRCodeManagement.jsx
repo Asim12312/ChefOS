@@ -162,6 +162,7 @@ const QRCodeManagement = () => {
                                             src={table.qrCodeImage}
                                             alt={`QR Table ${table.name}`}
                                             className="w-32 h-32 object-contain"
+                                            loading="lazy"
                                         />
                                     </div>
 

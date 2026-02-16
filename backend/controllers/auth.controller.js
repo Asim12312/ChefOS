@@ -43,16 +43,16 @@ export const register = async (req, res, next) => {
             role: role || 'OWNER'
         });
 
-        // Generate verification token
-        const verificationToken = user.generateVerificationToken();
+        // Generate verification OTP
+        const otp = user.generateEmailVerificationOTP();
         await user.save({ validateBeforeSave: false });
 
-        // Send verification email
+        // Send verification OTP email
         try {
-            await sendVerificationEmail(user.email, verificationToken, user.name);
-            logger.info(`Verification email sent to: ${user.email}`);
+            await sendVerificationEmail(user.email, otp, user.name);
+            logger.info(`Verification OTP sent to: ${user.email}`);
         } catch (emailError) {
-            logger.error(`Failed to send verification email during registration to ${user.email}: ${emailError.message}`);
+            logger.error(`Failed to send verification OTP during registration to ${user.email}: ${emailError.message}`);
             // Note: We don't fail registration if email fails, but user will need to resend
         }
 
@@ -60,7 +60,7 @@ export const register = async (req, res, next) => {
 
         res.status(201).json({
             success: true,
-            message: 'Registration successful. Please check your email to verify your account.',
+            message: 'Registration successful. Please check your email for the verification OTP.',
             data: {
                 user: {
                     id: user._id,
@@ -433,6 +433,62 @@ export const verifyEmail = async (req, res, next) => {
         });
     } catch (error) {
         logger.error(`VerifyEmail error: ${error.message}`);
+        next(error);
+    }
+};
+
+// @desc    Verify email with OTP
+// @route   POST /api/auth/verify-email-otp
+// @access  Public
+export const verifyEmailOTP = async (req, res, next) => {
+    try {
+        const { email, otp } = req.body;
+
+        if (!email || !otp) {
+            return res.status(400).json({
+                success: false,
+                message: 'Email and OTP are required'
+            });
+        }
+
+        // Hash OTP to compare with stored version
+        const hashedOTP = crypto.createHash('sha256').update(otp).digest('hex');
+
+        // Find user with matching OTP and valid expiry
+        const user = await User.findOne({
+            email,
+            verificationToken: hashedOTP,
+            verificationExpires: { $gt: Date.now() }
+        }).select('+verificationToken +verificationExpires');
+
+        if (!user) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid or expired OTP'
+            });
+        }
+
+        // Mark as verified
+        user.emailVerified = true;
+        user.verificationToken = undefined;
+        user.verificationExpires = undefined;
+        await user.save({ validateBeforeSave: false });
+
+        logger.info(`Email verified via OTP for: ${user.email}`);
+
+        // Send welcome email
+        try {
+            await sendWelcomeEmail(user.email, user.name);
+        } catch (emailError) {
+            logger.error(`Failed to send welcome email to ${user.email}: ${emailError.message}`);
+        }
+
+        res.status(200).json({
+            success: true,
+            message: 'Email verified successfully! You can now login.'
+        });
+    } catch (error) {
+        logger.error(`VerifyEmailOTP error: ${error.message}`);
         next(error);
     }
 };

@@ -23,8 +23,20 @@ const Register = () => {
         match: false
     });
     const [showPasswordRequirements, setShowPasswordRequirements] = useState(false);
+    const [resendTimer, setResendTimer] = useState(0);
     const { register, resendVerification, user: authUser, checkRestaurantStatus } = useAuth();
     const navigate = useNavigate();
+
+    // Timer logic for resend email
+    useEffect(() => {
+        let interval;
+        if (resendTimer > 0) {
+            interval = setInterval(() => {
+                setResendTimer((prev) => prev - 1);
+            }, 1000);
+        }
+        return () => clearInterval(interval);
+    }, [resendTimer]);
 
     // Handle errors from social login redirect
     useEffect(() => {
@@ -84,10 +96,12 @@ const Register = () => {
         try {
             const result = await register(formData.name, formData.email, formData.password, formData.role);
             if (result.success) {
+                toast.success('Registration successful! Please check your email.');
                 setIsRegistered(true);
             }
         } catch (error) {
             console.error('Registration error:', error);
+            // Error toast is handled by API interceptor
         } finally {
             setLoading(false);
         }
@@ -137,11 +151,20 @@ const Register = () => {
 
                     <div className="space-y-4">
                         <button
-                            onClick={handleResend}
-                            disabled={loading}
-                            className="w-full btn-primary py-4 text-black font-bold uppercase tracking-widest text-xs flex items-center justify-center gap-3 transition-all rounded-2xl"
+                            onClick={() => {
+                                handleResend();
+                                setResendTimer(40);
+                            }}
+                            disabled={loading || resendTimer > 0}
+                            className="w-full btn-primary py-4 text-black font-bold uppercase tracking-widest text-xs flex items-center justify-center gap-3 transition-all rounded-2xl disabled:opacity-50"
                         >
-                            {loading ? <div className="w-5 h-5 border-2 border-black/30 border-t-black rounded-full animate-spin" /> : 'Resend Verification Email'}
+                            {loading ? (
+                                <div className="w-5 h-5 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+                            ) : resendTimer > 0 ? (
+                                `Resend in ${resendTimer}s`
+                            ) : (
+                                'Resend Verification Email'
+                            )}
                         </button>
 
                         <Link

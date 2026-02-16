@@ -85,13 +85,21 @@ export const HeroSection = () => {
                             </motion.div>
 
                             <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                                <Link
-                                    to="/demo"
-                                    className="text-sm sm:text-base h-11 sm:h-12 px-5 sm:px-6 gap-2 inline-flex items-center justify-center border border-border/50 bg-background/50 hover:bg-muted/50 backdrop-blur-sm rounded-xl transition-all hover:border-border"
+                                <a
+                                    href="#pricing"
+                                    className="text-sm sm:text-base h-11 sm:h-12 px-5 sm:px-6 gap-2 inline-flex items-center justify-center border border-border/50 bg-background/50 hover:bg-muted/50 backdrop-blur-sm rounded-xl transition-all hover:border-border cursor-pointer"
                                 >
-                                    <Play className="w-4 h-4 fill-current" />
-                                    Watch Demo
-                                </Link>
+                                    Pricing
+                                </a>
+                            </motion.div>
+
+                            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                                <a
+                                    href="#contact"
+                                    className="text-sm sm:text-base h-11 sm:h-12 px-5 sm:px-6 gap-2 inline-flex items-center justify-center border border-border/50 bg-background/50 hover:bg-muted/50 backdrop-blur-sm rounded-xl transition-all hover:border-border cursor-pointer"
+                                >
+                                    Contact
+                                </a>
                             </motion.div>
                         </motion.div>
 
@@ -137,7 +145,7 @@ export const HeroSection = () => {
                                     </div>
                                     <div>
                                         <p className="text-sm font-medium">Order Received</p>
-                                        <p className="text-xs text-muted-foreground">Table 5 • 3 items</p>
+                                        <p className="text-xs text-muted-foreground">Table 12 • 3 items</p>
                                     </div>
                                 </div>
                             </motion.div>

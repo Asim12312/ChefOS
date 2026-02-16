@@ -66,7 +66,6 @@ export const AuthProvider = ({ children }) => {
             localStorage.setItem('user', JSON.stringify(user));
 
             setUser(user);
-            toast.success('Login successful!');
             return user;
         } catch (error) {
             const errorData = error.response?.data;
@@ -98,12 +97,8 @@ export const AuthProvider = ({ children }) => {
             }
 
             // With email verification, we don't get tokens back upon registration
-            toast.success(response.data.message || 'Registration successful! Verification email sent.');
             return { success: true, message: response.data.message };
         } catch (error) {
-            const errorMsg = error.response?.data?.message || error.message || 'Registration failed';
-            console.error('Register error:', errorMsg);
-            toast.error(errorMsg);
             throw error;
         }
     };
@@ -114,8 +109,6 @@ export const AuthProvider = ({ children }) => {
             toast.success(response.data.message || 'Verification email resent.');
             return response.data;
         } catch (error) {
-            const errorMsg = error.response?.data?.message || error.message || 'Failed to resend verification';
-            toast.error(errorMsg);
             throw error;
         }
     };
@@ -130,13 +123,12 @@ export const AuthProvider = ({ children }) => {
             localStorage.removeItem('refreshToken');
             localStorage.removeItem('user');
             setUser(null);
-            toast.success('Logged out successfully');
         }
     };
 
     const checkRestaurantStatus = async () => {
         try {
-            const response = await api.get('/restaurant/my-primary');
+            const response = await api.get('/restaurant/my-primary', { _skipErrorToast: true });
             return response.data.success && response.data.data !== null;
         } catch (error) {
             // 404 means no restaurant found
@@ -191,7 +183,7 @@ export const AuthProvider = ({ children }) => {
         tryRefresh,
         setUser,
         isAuthenticated: !!user,
-    }), [user, loading]);
+    }), [user, loading, login, register, resendVerification, logout, checkRestaurantStatus, fetchMe, tryRefresh, setUser]);
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

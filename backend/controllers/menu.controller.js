@@ -36,10 +36,13 @@ export const createMenuItem = async (req, res, next) => {
 
 // @desc    Get menu items
 // @route   GET /api/menu?restaurant=:restaurantId&category=:category
+// @route   GET /api/menu/restaurant/:id
 // @access  Public
 export const getMenuItems = async (req, res, next) => {
     try {
-        const { restaurant, category, available } = req.query;
+        // Support both query param and route param for restaurant ID
+        const restaurant = req.params.id || req.query.restaurant;
+        const { category, available } = req.query;
 
         if (!restaurant) {
             return res.status(400).json({

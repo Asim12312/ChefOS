@@ -128,7 +128,7 @@ const CustomerLayout = () => {
                     >
                         <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center font-bold text-black border border-white/10 shadow-lg shadow-primary/20 group-hover:shadow-primary/40 transition-all overflow-hidden">
                             {restaurant.logo ? (
-                                <img src={restaurant.logo} alt="logo" className="w-full h-full object-cover" />
+                                <img src={restaurant.logo} alt="logo" className="w-full h-full object-cover" loading="lazy" />
                             ) : (
                                 restaurant.name.charAt(0)
                             )}

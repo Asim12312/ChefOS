@@ -12,7 +12,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import Sidebar from '../../components/dashboard/Sidebar';
 import Header from '../../components/dashboard/Header';
-import ManualOrderModal from '../../components/dashboard/ManualOrderModal';
+
 
 const OrderManagement = () => {
     const { user } = useAuth();
@@ -24,7 +24,7 @@ const OrderManagement = () => {
     });
     const [activeTab, setActiveTab] = useState('ACTIVE'); // ACTIVE, HISTORY
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-    const [isManualOrderOpen, setIsManualOrderOpen] = useState(false);
+
 
     // Initial setup
     useEffect(() => {
@@ -378,14 +378,7 @@ const OrderManagement = () => {
                                 </button>
                             </div>
 
-                            <button
-                                onClick={() => setIsManualOrderOpen(true)}
-                                className="bg-primary text-primary-foreground px-4 py-2 rounded-xl font-bold flex items-center gap-2 shadow-lg shadow-primary/20 hover:bg-primary/90 transition-all active:scale-95"
-                            >
-                                <Plus size={18} strokeWidth={3} />
-                                <span className="hidden sm:inline">New Order</span>
-                                <span className="sm:hidden">New</span>
-                            </button>
+
                         </div>
                     </div>
 
@@ -584,11 +577,7 @@ const OrderManagement = () => {
                 </div>
             </div>
 
-            <ManualOrderModal
-                isOpen={isManualOrderOpen}
-                onClose={() => setIsManualOrderOpen(false)}
-                restaurantId={restaurantId}
-            />
+
         </div>
     );
 };
