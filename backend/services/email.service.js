@@ -5,15 +5,15 @@ import logger from '../utils/logger.js';
 const transporter = nodemailer.createTransport({
     service: process.env.EMAIL_SERVICE || 'gmail',
     host: process.env.EMAIL_HOST || (process.env.EMAIL_SERVICE === 'gmail' ? 'smtp.gmail.com' : undefined),
-    port: process.env.EMAIL_PORT || 465,
-    secure: process.env.EMAIL_SECURE !== 'false', // Default to true (SSL) for production reliability
+    port: process.env.EMAIL_PORT || 587, // Switch to 587 for higher compatibility
+    secure: process.env.EMAIL_SECURE === 'true', // Use false for 587 (STARTTLS)
     auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASSWORD
     },
-    connectionTimeout: 10000,
-    greetingTimeout: 10000,
-    socketTimeout: 15000
+    connectionTimeout: 15000,
+    greetingTimeout: 15000,
+    socketTimeout: 20000
 });
 
 // Verify connection and log status for production troubleshooting
