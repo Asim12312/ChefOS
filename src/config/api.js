@@ -33,6 +33,13 @@ api.interceptors.response.use(
             console.error('Invalid response structure:', response);
             return Promise.reject(new Error('Empty response from server'));
         }
+
+        // Detect if we received HTML instead of JSON (common in misconfigured production SPA proxies)
+        if (typeof response.data === 'string' && response.data.trim().startsWith('<!DOCTYPE html>')) {
+            console.error('API Error: Received HTML instead of JSON. Check VITE_API_URL or proxy configuration.');
+            return Promise.reject(new Error('Internal server error: Received HTML response.'));
+        }
+
         return response;
     },
     async (error) => {

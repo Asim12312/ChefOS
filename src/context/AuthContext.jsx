@@ -96,8 +96,13 @@ export const AuthProvider = ({ children }) => {
                 throw new Error('Invalid response from server. Please check your backend.');
             }
 
-            // With email verification, we don't get tokens back upon registration
-            return { success: true, message: response.data.message };
+            // Verify that the response actually contains a success flag
+            if (response.data && response.data.success) {
+                return { success: true, message: response.data.message };
+            }
+
+            // Fallback if success flag is missing (e.g., getting HTML back from a proxy)
+            throw new Error('Server returned an unexpected response format. Please try again.');
         } catch (error) {
             throw error;
         }
