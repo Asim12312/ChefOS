@@ -11,6 +11,11 @@ const api = axios.create({
     },
 });
 
+// Debug: Log API Base URL found in environment
+if (import.meta.env.PROD) {
+    console.log('[API] Environment Base URL:', API_BASE_URL);
+}
+
 // Request interceptor - Add auth token
 api.interceptors.request.use(
     (config) => {
@@ -36,8 +41,13 @@ api.interceptors.response.use(
 
         // Detect if we received HTML instead of JSON (common in misconfigured production SPA proxies)
         if (typeof response.data === 'string' && response.data.trim().startsWith('<!DOCTYPE html>')) {
-            console.error('API Error: Received HTML instead of JSON. Check VITE_API_URL or proxy configuration.');
-            return Promise.reject(new Error('Internal server error: Received HTML response.'));
+            const errorMsg = 'API Error: Received HTML instead of JSON. This usually means the VITE_API_URL is not correctly set or the backend is unreachable.';
+            console.error(errorMsg, {
+                url: response.config.url,
+                status: response.status,
+                baseUrl: API_BASE_URL
+            });
+            return Promise.reject(new Error(errorMsg));
         }
 
         return response;

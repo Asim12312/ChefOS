@@ -101,8 +101,9 @@ const Register = () => {
                 setIsRegistered(true);
             }
         } catch (error) {
-            console.error('Registration error:', error);
-            // Error toast is handled by API interceptor
+            console.error('Registration error detail:', error);
+            const message = error.response?.data?.message || error.message || 'Registration failed. Please check your connection.';
+            toast.error(message);
         } finally {
             setLoading(false);
         }
