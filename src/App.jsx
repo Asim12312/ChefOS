@@ -54,6 +54,7 @@ const Complaints = lazy(() => import('./pages/owner').then(m => ({ default: m.Co
 const RestaurantOnboarding = lazy(() => import('./pages/owner').then(m => ({ default: m.RestaurantOnboarding })));
 const ChefAI = lazy(() => import('./pages/owner').then(m => ({ default: m.ChefAI })));
 const Subscription = lazy(() => import('./pages/owner').then(m => ({ default: m.Subscription })));
+const SubscriptionSuccess = lazy(() => import('./pages/owner/SubscriptionSuccess'));
 const StaffManagement = lazy(() => import('./pages/owner').then(m => ({ default: m.StaffManagement })));
 const Billing = lazy(() => import('./pages/owner/Billing'));
 const QRCodeManagement = lazy(() => import('./pages/owner/QRCodeManagement'));
@@ -311,6 +312,16 @@ function App() {
                       <ProtectedRoute roles={['OWNER', 'ADMIN']}>
                         <OwnerGuard>
                           <Subscription />
+                        </OwnerGuard>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/owner/subscription/success"
+                    element={
+                      <ProtectedRoute roles={['OWNER', 'ADMIN']}>
+                        <OwnerGuard>
+                          <SubscriptionSuccess />
                         </OwnerGuard>
                       </ProtectedRoute>
                     }

@@ -117,6 +117,11 @@ export const handleStripeWebhook = async (req, res, next) => {
                 await handlePaymentIntentFailed(event.data.object);
                 break;
 
+            case 'checkout.session.completed':
+                // Handle create subscription success
+                await handleCheckoutSessionCompleted(event.data.object);
+                break;
+
             case 'customer.subscription.created':
             case 'customer.subscription.updated':
                 await handleSubscriptionUpdate(event.data.object);
@@ -141,6 +146,9 @@ export const handleStripeWebhook = async (req, res, next) => {
         res.json({ received: true });
     } catch (err) {
         logger.error(`Stripe webhook error: ${err.message}`);
+        if (process.env.NODE_ENV === 'development') {
+            console.error(err);
+        }
         return res.status(400).send(`Webhook Error: ${err.message}`);
     }
 };
@@ -477,6 +485,80 @@ async function handlePaymentIntentFailed(paymentIntent) {
         payment.status = 'FAILED';
         payment.failureReason = paymentIntent.last_payment_error?.message;
         await payment.save();
+    }
+}
+
+async function handleCheckoutSessionCompleted(session) {
+    if (session.mode === 'subscription') {
+        const { restaurantId, planId } = session.metadata;
+        const subscriptionId = session.subscription;
+
+        logger.info(`Processing subscription checkout for restaurant: ${restaurantId}`);
+
+        try {
+            // Fetch full subscription details from Stripe
+            const subDetails = await stripeService.getSubscription(subscriptionId);
+
+            if (subDetails.success) {
+                const stripeSub = subDetails.subscription;
+
+                // 1. Get Plan Details
+                const planDetails = getPlanDetails(planId, stripeSub.priceId);
+
+                // 2. Find or Create Subscription Record
+                let subscription = await Subscription.findOne({ restaurant: restaurantId });
+
+                if (subscription) {
+                    // Update existing
+                    subscription.stripeSubscriptionId = subscriptionId;
+                    subscription.stripePriceId = stripeSub.priceId;
+                    subscription.stripeCustomerId = session.customer;
+                    subscription.status = stripeSub.status.toUpperCase();
+                    subscription.currentPeriodStart = stripeSub.currentPeriodStart;
+                    subscription.currentPeriodEnd = stripeSub.currentPeriodEnd;
+                    subscription.cancelAtPeriodEnd = stripeSub.cancelAtPeriodEnd;
+                    subscription.plan = {
+                        name: planDetails.name,
+                        displayName: planDetails.displayName,
+                        price: planDetails.price,
+                        currency: planDetails.currency,
+                        interval: planDetails.interval,
+                        features: planDetails.features
+                    };
+                    await subscription.save();
+                } else {
+                    // Create new
+                    subscription = await Subscription.create({
+                        restaurant: restaurantId,
+                        stripeCustomerId: session.customer,
+                        stripeSubscriptionId: subscriptionId,
+                        stripePriceId: stripeSub.priceId,
+                        status: stripeSub.status.toUpperCase(),
+                        currentPeriodStart: stripeSub.currentPeriodStart,
+                        currentPeriodEnd: stripeSub.currentPeriodEnd,
+                        cancelAtPeriodEnd: stripeSub.cancelAtPeriodEnd,
+                        plan: {
+                            name: planDetails.name,
+                            displayName: planDetails.displayName,
+                            price: planDetails.price,
+                            currency: planDetails.currency,
+                            interval: planDetails.interval,
+                            features: planDetails.features
+                        }
+                    });
+                }
+
+                // 3. Link to restaurant
+                await Restaurant.findByIdAndUpdate(restaurantId, {
+                    subscription: subscription._id,
+                    stripeCustomerId: session.customer
+                });
+
+                logger.info(`Subscription activated for restaurant ${restaurantId}`);
+            }
+        } catch (error) {
+            logger.error(`Error handling subscription checkout: ${error.message}`);
+        }
     }
 }
 

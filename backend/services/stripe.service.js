@@ -121,6 +121,56 @@ class StripeService {
     }
 
     /**
+     * Create subscription checkout session
+     */
+    async createSubscriptionCheckoutSession(params) {
+        try {
+            const {
+                customerId,
+                priceId,
+                successUrl,
+                cancelUrl,
+                metadata = {},
+                trialDays = 0
+            } = params;
+
+            const sessionParams = {
+                customer: customerId,
+                line_items: [
+                    {
+                        price: priceId,
+                        quantity: 1,
+                    },
+                ],
+                mode: 'subscription',
+                success_url: successUrl,
+                cancel_url: cancelUrl,
+                metadata: metadata,
+                subscription_data: {
+                    metadata: metadata
+                }
+            };
+
+            if (trialDays > 0) {
+                sessionParams.subscription_data.trial_period_days = trialDays;
+            }
+
+            const session = await this.stripe.checkout.sessions.create(sessionParams);
+
+            logger.info(`Stripe subscription checkout session created: ${session.id}`);
+
+            return {
+                success: true,
+                sessionId: session.id,
+                url: session.url
+            };
+        } catch (error) {
+            logger.error(`Stripe subscription checkout session creation failed: ${error.message}`);
+            throw new Error(`Stripe Error: ${error.message}`);
+        }
+    }
+
+    /**
      * Cancel subscription
      */
     async cancelSubscription(subscriptionId, immediately = false) {

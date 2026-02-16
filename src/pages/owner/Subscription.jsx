@@ -1,29 +1,88 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Check, Sparkles, Zap, ArrowRight, ShieldCheck, CreditCard, MessageCircle, X, BarChart3, Table, Store, MessageSquare } from 'lucide-react';
+import { Check, Sparkles, Zap, ArrowRight, ShieldCheck, CreditCard, MessageCircle, X, BarChart3, Table, Store, MessageSquare, Loader2 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { cn } from '../../lib/utils';
 import Sidebar from '../../components/dashboard/Sidebar';
+import api from '../../config/api';
+import toast from 'react-hot-toast';
 
 const Subscription = () => {
     const { user } = useAuth();
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-    const [showManualModal, setShowManualModal] = useState(false);
+    const [loading, setLoading] = useState(true);
+    const [processing, setProcessing] = useState(false);
+    const [subscriptionData, setSubscriptionData] = useState(null);
 
-    const subscription = user?.restaurant?.subscription;
-    const isPremium = subscription?.plan === 'PREMIUM';
-    const premiumUntil = subscription?.premiumUntil;
+    // Fetch live subscription status
+    useEffect(() => {
+        const fetchSubscription = async () => {
+            try {
+                const response = await api.get('/subscriptions/status');
+                if (response.data.success) {
+                    setSubscriptionData(response.data.data);
+                }
+            } catch (error) {
+                console.error('Failed to fetch subscription:', error);
+            } finally {
+                setLoading(false);
+            }
+        };
 
-    // Calculate days remaining
-    const daysRemaining = premiumUntil ? Math.max(0, Math.ceil((new Date(premiumUntil) - new Date()) / (1000 * 60 * 60 * 24))) : 0;
-    const formattedDate = premiumUntil ? new Date(premiumUntil).toLocaleDateString('en-US', {
-        month: 'long',
-        day: 'numeric',
-        year: 'numeric'
-    }) : 'N/A';
+        fetchSubscription();
 
-    const handleUpgrade = () => {
-        setShowManualModal(true);
+        // Check for cancellation or success query params
+        const query = new URLSearchParams(window.location.search);
+        if (query.get('success')) {
+            toast.success('Subscription updated successfully! Welcome to Premium.');
+        }
+        if (query.get('canceled')) {
+            toast.error('Subscription update canceled.');
+        }
+    }, []);
+
+    const isPremium = subscriptionData?.isPremium;
+    const daysRemaining = subscriptionData?.daysRemaining || 0;
+
+    // Format renewal date
+    const renewalDate = subscriptionData?.currentPeriodEnd
+        ? new Date(subscriptionData.currentPeriodEnd).toLocaleDateString('en-US', {
+            month: 'long',
+            day: 'numeric',
+            year: 'numeric'
+        })
+        : 'N/A';
+
+    const handleUpgrade = async () => {
+        setProcessing(true);
+        try {
+            const response = await api.post('/subscriptions/create-checkout', {
+                planId: 'PREMIUM',
+                interval: 'month'
+            });
+
+            if (response.data.success && response.data.url) {
+                window.location.href = response.data.url;
+            }
+        } catch (error) {
+            console.error('Upgrade failed:', error);
+            toast.error(error.response?.data?.message || 'Failed to initiate upgrade');
+            setProcessing(false);
+        }
+    };
+
+    const handleManageBilling = async () => {
+        setProcessing(true);
+        try {
+            const response = await api.get('/subscriptions/portal');
+            if (response.data.success && response.data.url) {
+                window.location.href = response.data.url;
+            }
+        } catch (error) {
+            console.error('Portal failed:', error);
+            toast.error('Failed to access billing portal');
+            setProcessing(false);
+        }
     };
 
     const features = [
@@ -34,6 +93,14 @@ const Subscription = () => {
         { name: "Inventory Engine", premium: true, icon: Store },
         { name: "Service Request Hub", premium: true, icon: MessageSquare },
     ];
+
+    if (loading) {
+        return (
+            <div className="flex min-h-screen items-center justify-center bg-background">
+                <Loader2 className="w-10 h-10 animate-spin text-primary" />
+            </div>
+        );
+    }
 
     return (
         <div className="flex min-h-screen bg-background text-foreground selection:bg-primary/30">
@@ -114,7 +181,7 @@ const Subscription = () => {
                                     <div className="space-y-4 pt-6 border-t border-border/50 mb-8">
                                         <div className="flex justify-between items-center bg-muted/20 p-4 rounded-2xl border border-border/30 group hover:border-primary/30 transition-colors">
                                             <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Renewal Date</span>
-                                            <span className="text-sm font-bold text-foreground">{formattedDate}</span>
+                                            <span className="text-sm font-bold text-foreground">{renewalDate}</span>
                                         </div>
                                         <div className="flex justify-between items-center bg-muted/20 p-4 rounded-2xl border border-border/30 group hover:border-primary/30 transition-colors">
                                             <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Monthly Billed</span>
@@ -125,25 +192,30 @@ const Subscription = () => {
                                     <div className="flex flex-col gap-3">
                                         {isPremium ? (
                                             <button
-                                                onClick={() => setShowManualModal(true)}
-                                                className="btn-primary w-full h-14 rounded-2xl text-[11px] font-black tracking-[0.15em] uppercase flex items-center justify-center gap-3 group shadow-xl shadow-primary/20"
+                                                onClick={handleManageBilling}
+                                                disabled={processing}
+                                                className="btn-primary w-full h-14 rounded-2xl text-[11px] font-black tracking-[0.15em] uppercase flex items-center justify-center gap-3 group shadow-xl shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed"
                                             >
-                                                <CreditCard size={18} />
-                                                Billing Support
-                                                <ArrowRight size={18} className="transition-transform group-hover:translate-x-1" />
+                                                {processing ? <Loader2 className="animate-spin" /> : <CreditCard size={18} />}
+                                                Manage Subscription
+                                                {!processing && <ArrowRight size={18} className="transition-transform group-hover:translate-x-1" />}
                                             </button>
                                         ) : (
                                             <button
                                                 onClick={handleUpgrade}
-                                                className="btn-primary w-full h-14 rounded-2xl text-[11px] font-black tracking-[0.15em] uppercase flex items-center justify-center gap-3 group shadow-xl shadow-primary/20"
+                                                disabled={processing}
+                                                className="btn-primary w-full h-14 rounded-2xl text-[11px] font-black tracking-[0.15em] uppercase flex items-center justify-center gap-3 group shadow-xl shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed"
                                             >
-                                                Unlock Everything
-                                                <ArrowRight size={18} className="transition-transform group-hover:translate-x-1" />
+                                                {processing ? <Loader2 className="animate-spin" /> : <Sparkles size={18} />}
+                                                Upgrade to Premium
+                                                {!processing && <ArrowRight size={18} className="transition-transform group-hover:translate-x-1" />}
                                             </button>
                                         )}
                                         <div className="flex items-center justify-center gap-2 mt-4 text-muted-foreground">
                                             <ShieldCheck size={14} className="text-emerald-500" />
-                                            <span className="text-[10px] font-bold uppercase tracking-widest">Manual Billing Enabled</span>
+                                            <span className="text-[10px] font-bold uppercase tracking-widest">
+                                                {isPremium ? 'Secure Stripe Portal' : 'Secure Checkout by Stripe'}
+                                            </span>
                                         </div>
                                     </div>
                                 </div>
@@ -162,7 +234,7 @@ const Subscription = () => {
                                 <div className="relative z-10 flex flex-col items-center text-center">
                                     <h4 className="text-[10px] font-black tracking-[0.2em] text-primary uppercase mb-3">Kitchen Metric</h4>
                                     <p className="text-2xl font-black text-foreground mb-4 leading-tight italic">AI RESTAURANTS SEE 30% FASTER TURNOVER</p>
-                                    <p className="text-xs font-medium text-muted-foreground/80 leading-relaxed italic">"Premium users get priority access to our upcoming QR Payment update next month."</p>
+                                    <p className="text-xs font-medium text-muted-foreground/80 leading-relaxed italic">"Premium users access advanced analytics to optimize peak hours."</p>
                                 </div>
                             </motion.div>
                         </div>
@@ -225,106 +297,12 @@ const Subscription = () => {
                                             </motion.div>
                                         ))}
                                     </div>
-
-                                    {!isPremium && (
-                                        <motion.div
-                                            initial={{ opacity: 0, y: 10 }}
-                                            whileInView={{ opacity: 1, y: 0 }}
-                                            className="mt-12 p-8 rounded-[2.5rem] bg-card border-4 border-dashed border-primary/20 text-center relative overflow-hidden"
-                                        >
-                                            <div className="absolute inset-0 bg-primary/5 -z-10 animate-pulse" />
-                                            <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto mb-6 text-primary shadow-inner">
-                                                <MessageCircle size={32} strokeWidth={2.5} />
-                                            </div>
-                                            <h4 className="text-2xl font-black italic uppercase mb-2">Early Adopter Manual Activation</h4>
-                                            <p className="text-sm text-muted-foreground mb-8 max-w-lg mx-auto leading-relaxed">
-                                                We are offering manual premium activation for our first 20 restaurant partners! Get full access to all features today via direct support.
-                                            </p>
-                                            <a
-                                                href="mailto:support@chefos.com?subject=Premium%20Activation%20Request"
-                                                className="btn-primary inline-flex items-center gap-3 h-14 px-10 rounded-2xl font-black uppercase tracking-widest text-xs shadow-xl shadow-primary/20 group"
-                                            >
-                                                Contact for Activation
-                                                <ArrowRight size={18} className="transition-transform group-hover:translate-x-1" />
-                                            </a>
-                                        </motion.div>
-                                    )}
                                 </div>
                             </motion.div>
                         </div>
                     </div>
                 </div>
             </main>
-
-            {/* Manual Activation Modal */}
-            <AnimatePresence>
-                {showManualModal && (
-                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-                        <motion.div
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            onClick={() => setShowManualModal(false)}
-                            className="absolute inset-0 bg-black/80 backdrop-blur-md"
-                        />
-                        <motion.div
-                            initial={{ opacity: 0, scale: 0.9, y: 20 }}
-                            animate={{ opacity: 1, scale: 1, y: 0 }}
-                            exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                            className="relative z-10 w-full max-w-xl bg-card border-4 border-border rounded-[3rem] p-10 md:p-14 shadow-2xl overflow-hidden"
-                        >
-                            <div className="absolute top-0 right-0 p-8 opacity-5">
-                                <Sparkles size={160} className="text-primary" />
-                            </div>
-
-                            <button
-                                onClick={() => setShowManualModal(false)}
-                                className="absolute top-8 right-8 w-12 h-12 rounded-2xl bg-muted/50 flex items-center justify-center hover:bg-muted transition-colors text-muted-foreground hover:text-foreground active:scale-95"
-                            >
-                                <X size={24} />
-                            </button>
-
-                            <div className="flex flex-col items-center text-center relative z-10">
-                                <div className="w-24 h-24 rounded-[2rem] bg-primary/10 flex items-center justify-center text-primary mb-10 shadow-inner group">
-                                    <MessageCircle size={48} className="animate-pulse" strokeWidth={2} />
-                                </div>
-                                <h2 className="text-4xl font-black italic uppercase tracking-tight mb-4">Manual Activation</h2>
-                                <p className="text-muted-foreground text-lg mb-10 leading-relaxed font-medium">
-                                    To provide the best service to our first 20 partners, we are processing premium upgrades manually via direct support.
-                                </p>
-
-                                <div className="w-full space-y-4">
-                                    <div className="p-6 rounded-[2rem] bg-muted/20 border-2 border-border/50 text-left flex items-start gap-5 group transition-colors hover:border-primary/30">
-                                        <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center text-primary shrink-0">
-                                            <ShieldCheck size={24} strokeWidth={2.5} />
-                                        </div>
-                                        <div>
-                                            <div className="text-sm font-black uppercase tracking-widest mb-1.5">Direct Activation</div>
-                                            <div className="text-sm text-muted-foreground font-medium leading-relaxed">Contact us with your Restaurant ID to unlock premium features and set up manual billing.</div>
-                                        </div>
-                                    </div>
-
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-8">
-                                        <button
-                                            onClick={() => setShowManualModal(false)}
-                                            className="h-16 rounded-2xl bg-muted/50 font-black uppercase tracking-[0.2em] text-[10px] hover:bg-muted transition-all active:scale-95"
-                                        >
-                                            Close
-                                        </button>
-                                        <a
-                                            href="mailto:support@chefos.com?subject=Premium%20Activation%20Request"
-                                            className="h-16 rounded-2xl bg-primary text-primary-foreground font-black uppercase tracking-[0.2em] text-[10px] flex items-center justify-center gap-3 shadow-xl shadow-primary/20 hover:brightness-110 active:scale-95 transition-all"
-                                        >
-                                            <MessageCircle size={18} strokeWidth={3} />
-                                            Contact Support
-                                        </a>
-                                    </div>
-                                </div>
-                            </div>
-                        </motion.div>
-                    </div>
-                )}
-            </AnimatePresence>
         </div>
     );
 };
