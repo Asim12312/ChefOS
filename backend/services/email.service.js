@@ -98,7 +98,7 @@ export const sendPasswordResetOTP = async (email, otp, userName) => {
             return { success: true, messageId: 'dev-fallback' };
         }
 
-        throw new Error('Failed to send password reset email');
+        throw error;
     }
 };
 
@@ -164,7 +164,7 @@ export const sendVerificationEmail = async (email, token, userName) => {
             return { success: true, messageId: 'dev-fallback' };
         }
 
-        throw new Error('Failed to send verification email');
+        throw error; // Throw the actual SMTP error instead of a generic string
     }
 };
 
