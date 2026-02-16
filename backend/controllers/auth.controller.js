@@ -47,14 +47,11 @@ export const register = async (req, res, next) => {
         const otp = user.generateEmailVerificationOTP();
         await user.save({ validateBeforeSave: false });
 
-        // Send verification OTP email
-        try {
-            await sendVerificationEmail(user.email, otp, user.name);
-            logger.info(`Verification OTP sent to: ${user.email}`);
-        } catch (emailError) {
+        // Send verification OTP email (Non-blocking)
+        sendVerificationEmail(user.email, otp, user.name).catch(emailError => {
             logger.error(`Failed to send verification OTP during registration to ${user.email}: ${emailError.message}`);
-            // Note: We don't fail registration if email fails, but user will need to resend
-        }
+        });
+        logger.info(`Verification OTP dispatching to: ${user.email}`);
 
         logger.info(`New user registered (verification pending): ${user.email} (${user.role})`);
 
@@ -528,9 +525,11 @@ export const resendVerificationEmail = async (req, res, next) => {
         const verificationToken = user.generateVerificationToken();
         await user.save({ validateBeforeSave: false });
 
-        // Send email
-        await sendVerificationEmail(user.email, verificationToken, user.name);
-        logger.info(`Verification email resent to: ${user.email}`);
+        // Send email (Non-blocking)
+        sendVerificationEmail(user.email, verificationToken, user.name).catch(err => {
+            logger.error(`Async Resend Email Error for ${user.email}: ${err.message}`);
+        });
+        logger.info(`Verification email dispatching to: ${user.email}`);
 
         res.status(200).json({
             success: true,

@@ -1,22 +1,34 @@
 import nodemailer from 'nodemailer';
 import logger from '../utils/logger.js';
 
-// Create transporter
-const createTransporter = () => {
-    return nodemailer.createTransport({
-        service: process.env.EMAIL_SERVICE || 'gmail',
-        auth: {
-            user: process.env.EMAIL_USER,
-            pass: process.env.EMAIL_PASSWORD
-        }
-    });
-};
+// Create transporter singleton for better performance and reliability
+const transporter = nodemailer.createTransport({
+    service: process.env.EMAIL_SERVICE || 'gmail',
+    host: process.env.EMAIL_HOST,
+    port: process.env.EMAIL_PORT || 587,
+    secure: process.env.EMAIL_SECURE === 'true',
+    auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASSWORD
+    },
+    // Prevent long hangs if credentials/server are wrong
+    connectionTimeout: 10000, // 10s
+    greetingTimeout: 10000,    // 10s
+    socketTimeout: 15000       // 15s
+});
+
+// Verify connection on startup (async)
+transporter.verify((error) => {
+    if (error) {
+        logger.error(`[Email] SMTP Connection Error: ${error.message}`);
+    } else {
+        logger.info('[Email] SMTP Server is ready');
+    }
+});
 
 // Send OTP email
 export const sendPasswordResetOTP = async (email, otp, userName) => {
     try {
-        const transporter = createTransporter();
-
         const mailOptions = {
             from: process.env.EMAIL_FROM || '"ChefOS" <noreply@chefos.pro>',
             to: email,
@@ -92,7 +104,6 @@ export const sendPasswordResetOTP = async (email, otp, userName) => {
 // Send Email Verification
 export const sendVerificationEmail = async (email, token, userName) => {
     try {
-        const transporter = createTransporter();
         const verificationUrl = `${process.env.CLIENT_URL || 'https://chefos.pro'}/verify-email?token=${token}`;
 
         const mailOptions = {
@@ -159,8 +170,6 @@ export const sendVerificationEmail = async (email, token, userName) => {
 // Send welcome email
 export const sendWelcomeEmail = async (email, userName) => {
     try {
-        const transporter = createTransporter();
-
         const mailOptions = {
             from: process.env.EMAIL_FROM || '"ChefOS" <noreply@chefos.pro>',
             to: email,
