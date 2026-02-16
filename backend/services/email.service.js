@@ -4,24 +4,25 @@ import logger from '../utils/logger.js';
 // Create transporter singleton for better performance and reliability
 const transporter = nodemailer.createTransport({
     service: process.env.EMAIL_SERVICE || 'gmail',
-    host: process.env.EMAIL_HOST,
-    port: process.env.EMAIL_PORT || 587,
-    secure: process.env.EMAIL_SECURE === 'true',
+    host: process.env.EMAIL_HOST || (process.env.EMAIL_SERVICE === 'gmail' ? 'smtp.gmail.com' : undefined),
+    port: process.env.EMAIL_PORT || 465,
+    secure: process.env.EMAIL_SECURE !== 'false', // Default to true (SSL) for production reliability
     auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASSWORD
     },
-    // Prevent long hangs if credentials/server are wrong
-    connectionTimeout: 10000, // 10s
-    greetingTimeout: 10000,    // 10s
-    socketTimeout: 15000       // 15s
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 15000
 });
 
-// Verify connection on startup (async)
+// Verify connection and log status for production troubleshooting
 transporter.verify((error) => {
     if (error) {
+        console.error('❌ [Email] SMTP Connection Failed:', error.message);
         logger.error(`[Email] SMTP Connection Error: ${error.message}`);
     } else {
+        console.log('✅ [Email] SMTP Server is ready');
         logger.info('[Email] SMTP Server is ready');
     }
 });
@@ -30,7 +31,7 @@ transporter.verify((error) => {
 export const sendPasswordResetOTP = async (email, otp, userName) => {
     try {
         const mailOptions = {
-            from: process.env.EMAIL_FROM || '"ChefOS" <noreply@chefos.pro>',
+            from: process.env.EMAIL_FROM || `"ChefOS" <${process.env.EMAIL_USER}>`,
             to: email,
             subject: 'Password Reset OTP - ChefOS',
             html: `
@@ -107,7 +108,7 @@ export const sendVerificationEmail = async (email, token, userName) => {
         const verificationUrl = `${process.env.CLIENT_URL || 'https://chefos.pro'}/verify-email?token=${token}`;
 
         const mailOptions = {
-            from: process.env.EMAIL_FROM || '"ChefOS" <noreply@chefos.pro>',
+            from: process.env.EMAIL_FROM || `"ChefOS" <${process.env.EMAIL_USER}>`,
             to: email,
             subject: 'Verify Your Email - ChefOS',
             html: `
@@ -171,7 +172,7 @@ export const sendVerificationEmail = async (email, token, userName) => {
 export const sendWelcomeEmail = async (email, userName) => {
     try {
         const mailOptions = {
-            from: process.env.EMAIL_FROM || '"ChefOS" <noreply@chefos.pro>',
+            from: process.env.EMAIL_FROM || `"ChefOS" <${process.env.EMAIL_USER}>`,
             to: email,
             subject: 'Welcome to ChefOS! 🎉',
             html: `
