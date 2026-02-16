@@ -1,31 +1,62 @@
+import axios from 'axios';
 import nodemailer from 'nodemailer';
 import logger from '../utils/logger.js';
 
-// Create transporter singleton for better performance and reliability
+// Create a Resend client helper if API key exists
+const sendViaResend = async (mailOptions) => {
+    try {
+        const response = await axios.post('https://api.resend.com/emails', {
+            from: mailOptions.from,
+            to: mailOptions.to,
+            subject: mailOptions.subject,
+            html: mailOptions.html,
+        }, {
+            headers: {
+                'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        return { success: true, messageId: response.data.id };
+    } catch (error) {
+        logger.error(`Resend API Error: ${error.response?.data?.message || error.message}`);
+        throw error;
+    }
+};
+
+// Original SMTP transporter for local fallback
 const transporter = nodemailer.createTransport({
     service: process.env.EMAIL_SERVICE || 'gmail',
     host: process.env.EMAIL_HOST || (process.env.EMAIL_SERVICE === 'gmail' ? 'smtp.gmail.com' : undefined),
-    port: process.env.EMAIL_PORT || 587, // Switch to 587 for higher compatibility
-    secure: process.env.EMAIL_SECURE === 'true', // Use false for 587 (STARTTLS)
+    port: process.env.EMAIL_PORT || 587,
+    secure: process.env.EMAIL_SECURE === 'true',
     auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASSWORD
-    },
-    connectionTimeout: 15000,
-    greetingTimeout: 15000,
-    socketTimeout: 20000
-});
-
-// Verify connection and log status for production troubleshooting
-transporter.verify((error) => {
-    if (error) {
-        console.error('❌ [Email] SMTP Connection Failed:', error.message);
-        logger.error(`[Email] SMTP Connection Error: ${error.message}`);
-    } else {
-        console.log('✅ [Email] SMTP Server is ready');
-        logger.info('[Email] SMTP Server is ready');
     }
 });
+
+// Helper to determine which service to use
+const sendMail = async (options) => {
+    // If RESEND_API_KEY is defined, always use it in production (bypasses port blocks)
+    if (process.env.RESEND_API_KEY) {
+        return await sendViaResend(options);
+    }
+    // Fallback to SMTP
+    return await transporter.sendMail(options);
+};
+
+// Verify connection status (only for SMTP)
+if (!process.env.RESEND_API_KEY) {
+    transporter.verify((error) => {
+        if (error) {
+            console.error('❌ [Email] SMTP Connection Failed:', error.message);
+            logger.error(`[Email] SMTP Connection Error: ${error.message}`);
+        } else {
+            console.log('✅ [Email] SMTP Server is ready');
+            logger.info('[Email] SMTP Server is ready');
+        }
+    });
+}
 
 // Send OTP email
 export const sendPasswordResetOTP = async (email, otp, userName) => {
@@ -85,7 +116,7 @@ export const sendPasswordResetOTP = async (email, otp, userName) => {
             text: `Hello ${userName},\n\nYour password reset OTP is: ${otp}\n\nThis code is valid for 10 minutes.\n\nIf you didn't request this, please ignore this email.\n\nBest regards,\nChefOS Team`
         };
 
-        const info = await transporter.sendMail(mailOptions);
+        const info = await sendMail(mailOptions);
         logger.info(`Password reset email sent: ${info.messageId}`);
         return { success: true, messageId: info.messageId };
     } catch (error) {
@@ -151,7 +182,7 @@ export const sendVerificationEmail = async (email, token, userName) => {
             text: `Hello ${userName},\n\nPlease verify your email address by clicking this link: ${verificationUrl}\n\nBest regards,\nChefOS Team`
         };
 
-        const info = await transporter.sendMail(mailOptions);
+        const info = await sendMail(mailOptions);
         logger.info(`Verification email sent: ${info.messageId}`);
         return { success: true, messageId: info.messageId };
     } catch (error) {
@@ -208,7 +239,7 @@ export const sendWelcomeEmail = async (email, userName) => {
             `
         };
 
-        await transporter.sendMail(mailOptions);
+        await sendMail(mailOptions);
     } catch (error) {
         logger.error(`Welcome email error: ${error.message}`);
     }
