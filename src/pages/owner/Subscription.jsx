@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Check, Sparkles, Zap, ArrowRight, ShieldCheck, CreditCard, MessageCircle, X, BarChart3, Table, Store, MessageSquare, Loader2 } from 'lucide-react';
+import { Check, Sparkles, Zap, ArrowRight, ShieldCheck, CreditCard, MessageCircle, X, BarChart3, Table, Store, MessageSquare, Loader2, RefreshCw } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { cn } from '../../lib/utils';
 import Sidebar from '../../components/dashboard/Sidebar';
@@ -85,6 +85,29 @@ const Subscription = () => {
         }
     };
 
+    const handleSync = async () => {
+        setProcessing(true);
+        const toastId = toast.loading('Syncing subscription status...');
+        try {
+            const response = await api.post('/subscriptions/sync');
+            if (response.data.success) {
+                toast.success('Subscription synced successfully!', { id: toastId });
+                // Refresh data
+                const statusRes = await api.get('/subscriptions/status');
+                if (statusRes.data.success) {
+                    setSubscriptionData(statusRes.data.data);
+                }
+            } else {
+                toast.error(response.data.message || 'Sync failed', { id: toastId });
+            }
+        } catch (error) {
+            console.error('Sync failed:', error);
+            toast.error('Failed to sync subscription', { id: toastId });
+        } finally {
+            setProcessing(false);
+        }
+    };
+
     const features = [
         { name: "Unlimited Tables & Menus", premium: true, icon: Table },
         { name: "Chef AI Assistant", premium: true, icon: Sparkles },
@@ -118,21 +141,34 @@ const Subscription = () => {
                             <p className="text-muted-foreground font-medium">Powering your kitchen with professional-grade tools.</p>
                         </motion.div>
 
-                        {isPremium && (
-                            <motion.div
-                                initial={{ opacity: 0, scale: 0.9 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                className="bg-emerald-500/10 border-2 border-emerald-500/20 px-6 py-3 rounded-2xl flex items-center gap-4"
+                        <div className="flex gap-4">
+                            <motion.button
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
+                                onClick={handleSync}
+                                disabled={processing}
+                                className="bg-card border-2 border-border p-3 rounded-2xl text-muted-foreground hover:text-primary hover:border-primary/50 transition-colors shadow-sm"
+                                title="Sync Subscription Status"
                             >
-                                <div className="text-right">
-                                    <div className="text-[10px] font-black uppercase tracking-widest text-emerald-500/60">Subscription Life</div>
-                                    <div className="text-xl font-black text-emerald-500">{daysRemaining} Days Left</div>
-                                </div>
-                                <div className="w-12 h-12 rounded-xl bg-emerald-500/20 flex items-center justify-center text-emerald-500 shadow-inner">
-                                    <ShieldCheck size={24} strokeWidth={2.5} />
-                                </div>
-                            </motion.div>
-                        )}
+                                <RefreshCw size={20} className={cn(processing && "animate-spin")} />
+                            </motion.button>
+
+                            {isPremium && (
+                                <motion.div
+                                    initial={{ opacity: 0, scale: 0.9 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    className="bg-emerald-500/10 border-2 border-emerald-500/20 px-6 py-3 rounded-2xl flex items-center gap-4"
+                                >
+                                    <div className="text-right">
+                                        <div className="text-[10px] font-black uppercase tracking-widest text-emerald-500/60">Subscription Life</div>
+                                        <div className="text-xl font-black text-emerald-500">{daysRemaining} Days Left</div>
+                                    </div>
+                                    <div className="w-12 h-12 rounded-xl bg-emerald-500/20 flex items-center justify-center text-emerald-500 shadow-inner">
+                                        <ShieldCheck size={24} strokeWidth={2.5} />
+                                    </div>
+                                </motion.div>
+                            )}
+                        </div>
                     </div>
 
                     <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
@@ -301,9 +337,9 @@ const Subscription = () => {
                             </motion.div>
                         </div>
                     </div>
-                </div>
-            </main>
-        </div>
+                </div >
+            </main >
+        </div >
     );
 };
 

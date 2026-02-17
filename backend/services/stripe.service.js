@@ -196,6 +196,28 @@ class StripeService {
     }
 
     /**
+     * List active subscriptions for a customer
+     */
+    async listActiveSubscriptions(customerId) {
+        try {
+            const subscriptions = await this.stripe.subscriptions.list({
+                customer: customerId,
+                status: 'active',
+                limit: 1,
+                expand: ['data.items.data.price']
+            });
+
+            return {
+                success: true,
+                subscriptions: subscriptions.data
+            };
+        } catch (error) {
+            logger.error(`Failed to list subscriptions: ${error.message}`);
+            throw new Error(`Stripe Error: ${error.message}`);
+        }
+    }
+
+    /**
      * Get subscription details
      */
     async getSubscription(subscriptionId) {

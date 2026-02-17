@@ -44,7 +44,7 @@ const SubscriptionSuccess = () => {
                 setCountdown((prev) => {
                     if (prev <= 1) {
                         clearInterval(timer);
-                        navigate('/owner/subscription');
+                        navigate('/subscription');
                         return 0;
                     }
                     return prev - 1;
@@ -56,7 +56,7 @@ const SubscriptionSuccess = () => {
                 clearInterval(timer);
             };
         } else {
-            navigate('/owner/subscription');
+            navigate('/subscription');
         }
     }, [sessionId, navigate]);
 
@@ -85,7 +85,7 @@ const SubscriptionSuccess = () => {
 
                 <div className="flex flex-col items-center gap-4">
                     <button
-                        onClick={() => navigate('/owner/subscription')}
+                        onClick={() => navigate('/subscription')}
                         className="btn-primary w-full h-14 rounded-2xl font-black uppercase tracking-widest text-xs flex items-center justify-center gap-2 group"
                     >
                         Go to Dashboard

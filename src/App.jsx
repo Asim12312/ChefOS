@@ -317,7 +317,7 @@ function App() {
                     }
                   />
                   <Route
-                    path="/owner/subscription/success"
+                    path="/subscription/success"
                     element={
                       <ProtectedRoute roles={['OWNER', 'ADMIN']}>
                         <OwnerGuard>

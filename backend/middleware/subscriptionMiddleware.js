@@ -19,6 +19,8 @@ export const requirePremium = async (req, res, next) => {
             subscription.plan?.name === 'PREMIUM' &&
             subscription.isActive();
 
+        console.log(`[Middleware] requirePremium: User=${req.user._id}, Plan=${subscription?.plan?.name}, Status=${subscription?.status}, isPremium=${isPremium}`);
+
         if (!isPremium) {
             return res.status(403).json({
                 success: false,
@@ -52,9 +54,12 @@ export const checkTableLimit = async (req, res, next) => {
         // Default limit for FREE plan
         const FREE_LIMIT = 2;
 
+
         const isPremium = subscription &&
             subscription.plan?.name === 'PREMIUM' &&
             subscription.isActive();
+
+        console.log(`[Middleware] checkTableLimit: Tables=${currentTables}, Limit=${FREE_LIMIT}, isPremium=${isPremium}, Status=${subscription?.status}`);
 
         if (!isPremium && currentTables >= FREE_LIMIT) {
             return res.status(403).json({
