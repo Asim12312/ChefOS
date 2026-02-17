@@ -233,7 +233,10 @@ export const logout = async (req, res, next) => {
 // @access  Private
 export const getMe = async (req, res, next) => {
     try {
-        const user = await User.findById(req.user.id).populate('restaurant');
+        const user = await User.findById(req.user.id).populate({
+            path: 'restaurant',
+            populate: { path: 'subscription' }
+        });
 
         res.status(200).json({
             success: true,

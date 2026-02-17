@@ -6,9 +6,11 @@ import { cn } from '../../lib/utils';
 import Sidebar from '../../components/dashboard/Sidebar';
 import api from '../../config/api';
 import toast from 'react-hot-toast';
+import { useNavigate } from 'react-router-dom';
 
 const Subscription = () => {
-    const { user } = useAuth();
+    const { user, fetchMe } = useAuth();
+    const navigate = useNavigate();
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [loading, setLoading] = useState(true);
     const [processing, setProcessing] = useState(false);
@@ -92,11 +94,16 @@ const Subscription = () => {
             const response = await api.post('/subscriptions/sync');
             if (response.data.success) {
                 toast.success('Subscription synced successfully!', { id: toastId });
-                // Refresh data
+
+                // Refresh local component data
                 const statusRes = await api.get('/subscriptions/status');
                 if (statusRes.data.success) {
                     setSubscriptionData(statusRes.data.data);
                 }
+
+                // IMPORTANT: Refresh global user state to unlock features immediately
+                await fetchMe();
+
             } else {
                 toast.error(response.data.message || 'Sync failed', { id: toastId });
             }

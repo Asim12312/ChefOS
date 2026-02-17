@@ -272,3 +272,34 @@ export const syncSubscription = async (req, res, next) => {
         next(error);
     }
 };
+
+function getPlanDetails(planName, priceId) {
+    const plans = {
+        'FREE': {
+            name: 'FREE',
+            displayName: 'Free Plan',
+            price: 0,
+            currency: 'USD',
+            interval: 'month',
+            features: ['Up to 2 tables', 'Basic QR Menu', 'Digital Ordering']
+        },
+        'PREMIUM': {
+            name: 'PREMIUM',
+            displayName: 'Premium Plan',
+            price: 25,
+            currency: 'USD',
+            interval: 'month',
+            features: [
+                'Unlimited tables',
+                'Advanced analytics',
+                'Priority support',
+                'Voice ordering',
+                'Custom theming',
+                'Inventory management',
+                'White-label solution'
+            ]
+        }
+    };
+
+    return plans[planName] || plans['FREE'];
+}
