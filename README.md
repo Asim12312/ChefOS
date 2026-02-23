@@ -66,7 +66,7 @@ ChefOS is built with a focus on **concurrency**, **real-time synchronization**, 
 ### Core Setup
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/chefos.git
+git clone https://github.com/Asim12312/ChefOS.git
 
 # Install root & frontend dependencies
 npm install
@@ -115,4 +115,4 @@ This project demonstrates complete ownership of a **complex business domain**. I
 ---
 
 © 2026 **ChefOS Intelligence**. All rights reserved.
-Developed by a solution-oriented engineer.
+Developed by a solution-oriented enginee(Muhammad Asim).
