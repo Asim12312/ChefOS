@@ -188,7 +188,7 @@ const Login = () => {
                         className="mb-12"
                     >
                         <Link to="/" className="group mb-12 block">
-                            <Logo className="w-auto h-12" />
+                            <Logo className="w-auto h-12" variant="inverse" />
                         </Link>
 
                         <h2 className="font-display text-4xl font-bold text-background mb-6 leading-tight">
@@ -197,7 +197,7 @@ const Login = () => {
                         </h2>
 
                         <p className="text-background/70 text-lg leading-relaxed mb-8">
-                            Join 89+ restaurants using ChefOS to <span className="text-primary font-semibold">streamline operations, cut costs, and delight customers</span> with easy ordering.
+                            Join 89+ restaurants using ChefOS to <span className="text-primary font-semibold">streamline operations, improve guest experience, and simplify management</span> with effortless ordering.
                         </p>
 
                         <div className="bg-background/10 backdrop-blur-md rounded-2xl p-6 border border-background/10">
@@ -216,7 +216,7 @@ const Login = () => {
                                 ))}
                             </div>
                             <p className="text-background/80 italic">
-                                "Honestly, I was not sure at first but ChefOS made our weekends so much smoother. The digital menu just works and customers actually enjoy using it!"
+                                "Our revenue increased by 22% in the first month. The AI-powered upselling and digital menu are game-changers for my business!"
                             </p>
                         </div>
                     </motion.div>

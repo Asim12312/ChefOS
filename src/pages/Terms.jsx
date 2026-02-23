@@ -14,7 +14,7 @@ const Terms = () => {
 
                     <section>
                         <h2 className="text-xl font-semibold text-foreground mb-3">2. Description of Service</h2>
-                        <p>ChefOS provides a restaurant management platform including digital menus, order tracking, and kitchen management systems. Premium features are available via a monthly subscription.</p>
+                        <p>ChefOS provides a restaurant management platform including digital menus, order tracking, and kitchen management systems.</p>
                     </section>
 
                     <section>
@@ -29,7 +29,7 @@ const Terms = () => {
 
                     <section>
                         <h2 className="text-xl font-semibold text-foreground mb-3">5. User Responsibilities</h2>
-                        <p>Restaurant owners are responsible for the accuracy of their menus and pricing. ChefOS is not liable for transactions between restaurants and their customers.</p>
+                        <p>Users are responsible for maintaining the confidentiality of their account. ChefOS is not liable for any loss or damage arising from unauthorized access to your account.</p>
                     </section>
 
                     <p className="text-sm pt-8 border-t border-border">Last updated: February 9, 2026</p>

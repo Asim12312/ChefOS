@@ -5,7 +5,7 @@ import api from '../../config/api';
 import {
     Receipt, Search, Filter, Download, Printer,
     Calendar, Table, DollarSign, ChevronRight,
-    ArrowLeft, MoreVertical
+    ArrowLeft, MoreVertical, CheckCircle, X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Sidebar from '../../components/dashboard/Sidebar';
@@ -67,6 +67,29 @@ const Billing = () => {
         });
     }, [bills, searchTerm, dateFilter]);
 
+    const handleMarkPaid = async (bill) => {
+        try {
+            await api.patch(`/orders/${bill._id}/payment`, { paymentStatus: 'PAID' });
+            queryClient.invalidateQueries(['bills']);
+            setSelectedBill(null);
+            toast.success('Payment marked as done');
+        } catch (error) {
+            toast.error('Failed to update payment status');
+        }
+    };
+
+    const handleCancelOrder = async (bill) => {
+        if (!window.confirm('Are you sure you want to cancel this order?')) return;
+        try {
+            await api.patch(`/orders/${bill._id}/status`, { status: 'CANCELLED' });
+            queryClient.invalidateQueries(['bills']);
+            setSelectedBill(null);
+            toast.success('Order cancelled');
+        } catch (error) {
+            toast.error('Failed to cancel order');
+        }
+    };
+
     const handlePrint = (bill) => {
         setSelectedBill(bill);
         toast.success(`Preparing Receipt for Order #${bill.orderNumber.split('-')[2]}...`);
@@ -74,7 +97,7 @@ const Billing = () => {
         // Short timeout to ensure state update and render before printing
         setTimeout(() => {
             window.print();
-        }, 100);
+        }, 300);
     };
 
     const exportToCSV = () => {
@@ -155,6 +178,31 @@ const Billing = () => {
 
     return (
         <div className="flex bg-background min-h-screen text-foreground print:bg-white print:text-black">
+            {/* Global Print Isolation Styles */}
+            <style dangerouslySetInnerHTML={{
+                __html: `
+                @media print {
+                    @page { margin: 0.5cm; size: auto; }
+                    body { 
+                        visibility: hidden !important;
+                        background: white !important;
+                    }
+                    .print-container { 
+                        visibility: visible !important;
+                        display: block !important; 
+                        position: absolute !important; 
+                        left: 0 !important; 
+                        top: 0 !important; 
+                        width: 100% !important; 
+                        z-index: 99999 !important;
+                    }
+                    /* Ensure nested elements in print-container are visible */
+                    .print-container * {
+                        visibility: visible !important;
+                    }
+                    #root > div:first-child { display: none !important; }
+                }
+            `}} />
             <Sidebar open={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)} className="print:hidden" />
 
             <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
@@ -173,7 +221,7 @@ const Billing = () => {
                                     className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-6 mb-6"
                                 >
                                     <h3 className="text-emerald-500 font-bold mb-4 flex items-center gap-2">
-                                        <DollarSign className="animate-bounce" />
+                                        <Receipt className="animate-bounce" />
                                         Pending Bill Requests ({billRequests.length})
                                     </h3>
                                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -197,7 +245,7 @@ const Billing = () => {
                         </AnimatePresence>
 
                         {/* Page Header */}
-                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 print:hidden">
                             <div>
                                 <h1 className="text-2xl md:text-3xl font-bold flex items-center gap-2">
                                     <Receipt className="text-primary w-8 h-8" />
@@ -223,8 +271,61 @@ const Billing = () => {
                             </div>
                         </div>
 
+                        {/* Stats Summary */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 print:hidden">
+                            <div className="bg-card border border-border p-5 rounded-2xl shadow-sm">
+                                <div className="flex items-center gap-3 mb-2">
+                                    <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+                                        <Receipt size={20} />
+                                    </div>
+                                    <span className="text-sm font-medium text-muted-foreground">Today's Revenue</span>
+                                </div>
+                                <div className="text-2xl font-black">
+                                    {bills.filter(b => b.paymentStatus === 'PAID' && new Date(b.createdAt).toDateString() === new Date().toDateString())
+                                        .reduce((acc, curr) => acc + curr.total, 0).toFixed(2)}
+                                </div>
+                            </div>
+
+                            <div className="bg-card border border-border p-5 rounded-2xl shadow-sm">
+                                <div className="flex items-center gap-3 mb-2">
+                                    <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500">
+                                        <Receipt size={20} />
+                                    </div>
+                                    <span className="text-sm font-medium text-muted-foreground">Today's Orders</span>
+                                </div>
+                                <div className="text-2xl font-black">
+                                    {bills.filter(b => new Date(b.createdAt).toDateString() === new Date().toDateString()).length}
+                                </div>
+                            </div>
+
+                            <div className="bg-card border border-border p-5 rounded-2xl shadow-sm">
+                                <div className="flex items-center gap-3 mb-2">
+                                    <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center text-orange-500">
+                                        <Calendar size={20} />
+                                    </div>
+                                    <span className="text-sm font-medium text-muted-foreground">Month to Date</span>
+                                </div>
+                                <div className="text-2xl font-black">
+                                    {bills.filter(b => b.paymentStatus === 'PAID' && new Date(b.createdAt).getMonth() === new Date().getMonth())
+                                        .reduce((acc, curr) => acc + curr.total, 0).toLocaleString()}
+                                </div>
+                            </div>
+
+                            <div className="bg-card border border-border p-5 rounded-2xl shadow-sm">
+                                <div className="flex items-center gap-3 mb-2">
+                                    <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-500">
+                                        <CheckCircle size={20} />
+                                    </div>
+                                    <span className="text-sm font-medium text-muted-foreground">Paid Percentage</span>
+                                </div>
+                                <div className="text-2xl font-black">
+                                    {bills.length > 0 ? ((bills.filter(b => b.paymentStatus === 'PAID').length / bills.length) * 100).toFixed(0) : 0}%
+                                </div>
+                            </div>
+                        </div>
+
                         {/* Filters Bar */}
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-card p-4 rounded-2xl border border-border shadow-sm">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-card p-4 rounded-2xl border border-border shadow-sm print:hidden">
                             <div className="relative group">
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors" size={18} />
                                 <input
@@ -259,7 +360,7 @@ const Billing = () => {
                         </div>
 
                         {/* Bills List */}
-                        <div className="bg-card border border-border rounded-2xl shadow-sm overflow-hidden">
+                        <div className="bg-card border border-border rounded-2xl shadow-sm overflow-hidden print:hidden">
                             <div className="overflow-x-auto">
                                 <table className="w-full text-left">
                                     <thead>
@@ -281,7 +382,7 @@ const Billing = () => {
                                                     initial={{ opacity: 0 }}
                                                     animate={{ opacity: 1 }}
                                                     exit={{ opacity: 0 }}
-                                                    className="group hover:bg-muted/20 transition-colors"
+                                                    className="group hover:bg-muted/20 transition-colors relative"
                                                 >
                                                     <td className="p-4">
                                                         <div className="font-mono text-primary font-bold">
@@ -318,10 +419,10 @@ const Billing = () => {
                                                     </td>
                                                     <td className="p-4">
                                                         <div className="font-black text-lg">
-                                                            ${bill.total.toFixed(2)}
+                                                            {bill.total.toFixed(2)}
                                                         </div>
                                                     </td>
-                                                    <td className="p-4 text-right">
+                                                    <td className="p-4 text-right relative">
                                                         <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                                             <button
                                                                 onClick={() => handlePrint(bill)}
@@ -330,10 +431,55 @@ const Billing = () => {
                                                             >
                                                                 <Printer size={18} />
                                                             </button>
-                                                            <button className="p-2 hover:bg-muted text-muted-foreground rounded-lg transition-colors">
-                                                                <MoreVertical size={18} />
-                                                            </button>
+
+                                                            <div className="relative">
+                                                                <button
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        setSelectedBill(selectedBill?._id === bill._id ? null : bill);
+                                                                    }}
+                                                                    className="p-2 hover:bg-muted text-muted-foreground rounded-lg transition-colors"
+                                                                >
+                                                                    <MoreVertical size={18} />
+                                                                </button>
+
+                                                                {selectedBill?._id === bill._id && (
+                                                                    <div className="absolute right-0 top-full mt-2 w-48 bg-card border border-border rounded-xl shadow-xl z-50 overflow-hidden flex flex-col text-left">
+                                                                        <button
+                                                                            onClick={() => handlePrint(bill)}
+                                                                            className="px-4 py-3 hover:bg-muted/50 text-sm font-medium text-foreground flex items-center gap-2 transition-colors border-b border-border/50"
+                                                                        >
+                                                                            <Printer size={16} className="text-primary" /> Print Receipt
+                                                                        </button>
+
+                                                                        {bill.paymentStatus !== 'PAID' && (
+                                                                            <button
+                                                                                onClick={() => handleMarkPaid(bill)}
+                                                                                className="px-4 py-3 hover:bg-emerald-500/10 text-sm font-medium text-emerald-500 flex items-center gap-2 transition-colors border-b border-border/50"
+                                                                            >
+                                                                                <CheckCircle size={16} /> Mark as Paid
+                                                                            </button>
+                                                                        )}
+
+                                                                        {bill.status !== 'CANCELLED' && (
+                                                                            <button
+                                                                                onClick={() => handleCancelOrder(bill)}
+                                                                                className="px-4 py-3 hover:bg-red-500/10 text-sm font-medium text-red-500 flex items-center gap-2 transition-colors"
+                                                                            >
+                                                                                <X size={16} /> Cancel Order
+                                                                            </button>
+                                                                        )}
+                                                                    </div>
+                                                                )}
+                                                            </div>
                                                         </div>
+                                                        {/* Backdrop to close menu */}
+                                                        {selectedBill?._id === bill._id && (
+                                                            <div
+                                                                className="fixed inset-0 z-40"
+                                                                onClick={() => setSelectedBill(null)}
+                                                            ></div>
+                                                        )}
                                                     </td>
                                                 </motion.tr>
                                             ))}
@@ -359,8 +505,8 @@ const Billing = () => {
                             </div>
                         </div>
 
-                        {/* Hidden Receipt for Printing */}
-                        <div className="hidden print:block">
+                        {/* Hidden Receipt for Printing - Isolated from main layout */}
+                        <div className="hidden print:block print-container">
                             {selectedBill && <ReceiptTemplate order={selectedBill} />}
                         </div>
 

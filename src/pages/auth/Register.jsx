@@ -211,7 +211,7 @@ const Register = () => {
                         transition={{ duration: 0.6 }}
                     >
                         <div className="mb-8">
-                            <Logo className="w-auto h-16" />
+                            <Logo className="w-auto h-16" variant="inverse" />
                         </div>
                         <h2 className="font-display text-4xl font-bold text-background mb-6 leading-tight">
                             Start Your Journey with ChefOS

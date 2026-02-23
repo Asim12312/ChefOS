@@ -38,7 +38,7 @@ import staffRoutes from './routes/staff.routes.js';
 // Load environment variables
 logger.info('Starting server...');
 dotenv.config();
-logger.info(`Environment variables reloaded. Email User: ${process.env.EMAIL_USER ? 'Set' : 'Not Set'}`);
+logger.info(`Environment variables reloaded. Email User: ${process.env.EMAIL_USER ? 'Set' : 'Not Set'}, Gemini AI Key: ${process.env.GEMINI_API_KEY ? 'Present' : 'Missing'}`);
 
 // Validate environment variables
 validateEnvironment();
@@ -97,13 +97,20 @@ app.use(cors({
     credentials: true
 }));
 app.use(compression());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
 app.use(morgan('combined', { stream: { write: message => logger.info(message.trim()) } }));
 
 // Initialize Passport
 configurePassport();
 app.use(passport.initialize());
+
+// CRITICAL: Webhook routes MUST come before express.json() to preserve raw body for signature verification
+// Import the webhook handler directly
+import { handleStripeWebhook } from './controllers/payment.controller.js';
+app.post('/api/payments/webhook/stripe', express.raw({ type: 'application/json' }), handleStripeWebhook);
+
+// Now add JSON parsing for all other routes
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // Rate limiting
 app.set('trust proxy', 1);

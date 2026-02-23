@@ -44,7 +44,12 @@ export const getRestaurant = async (req, res, next) => {
             });
         }
 
-        const restaurant = await Restaurant.findById(req.params.id).populate('owner', 'name email');
+        const restaurant = await Restaurant.findById(req.params.id)
+            .populate('owner', 'name email')
+            .populate({
+                path: 'subscription',
+                populate: { path: 'plan' }
+            });
 
         if (!restaurant) {
             return res.status(404).json({

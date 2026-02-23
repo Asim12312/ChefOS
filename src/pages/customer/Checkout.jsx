@@ -26,7 +26,7 @@ const Checkout = () => {
             return;
         }
 
-        const securityToken = localStorage.getItem('tablefy_security_token');
+        const securityToken = localStorage.getItem('chefos_security_token');
 
         const orderData = {
             restaurant: restaurant._id,
@@ -57,7 +57,7 @@ const Checkout = () => {
 
             if (res.data.success) {
                 clearCart();
-                localStorage.setItem('tablefy_last_order_id', res.data.data._id);
+                localStorage.setItem('chefos_last_order_id', res.data.data._id);
                 toast.success("Order placed successfully!");
                 navigate(`/menu/${restaurant._id}/order-tracking/${res.data.data._id}`);
             }
@@ -132,7 +132,7 @@ const Checkout = () => {
                                                     <p className="text-xs text-gray-500 mt-0.5 italic">Note: {item.specialInstructions}</p>
                                                 )}
                                             </div>
-                                            <div className="font-mono text-gray-400">${(item.price * item.quantity).toFixed(2)}</div>
+                                            <div className="font-mono text-gray-400">{(item.price * item.quantity).toFixed(2)}</div>
                                         </div>
                                     ))}
                                 </div>
@@ -145,15 +145,15 @@ const Checkout = () => {
                 <div className="bg-white/5 rounded-2xl border border-white/10 p-4 space-y-2">
                     <div className="flex justify-between text-gray-400 text-sm">
                         <span>Subtotal</span>
-                        <span>${subtotal.toFixed(2)}</span>
+                        <span>{subtotal.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between text-gray-400 text-sm">
                         <span>Tax (10%)</span>
-                        <span>${tax.toFixed(2)}</span>
+                        <span>{tax.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between text-xl font-bold text-white pt-2 border-t border-white/10 mt-2">
                         <span>Total</span>
-                        <span className="text-primary">${finalTotal.toFixed(2)}</span>
+                        <span className="text-primary">{finalTotal.toFixed(2)}</span>
                     </div>
                 </div>
 

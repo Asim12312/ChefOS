@@ -7,6 +7,7 @@ import Logo from "../common/Logo";
 const footerLinks = {
     product: [
         { name: "Features", href: "#features", isHash: true },
+        { name: "ROI Calculator", href: "#roi", isHash: true },
         { name: "Pricing", href: "#pricing", isHash: true },
         { name: "Demo", href: "#demo", isHash: true },
     ],
@@ -24,12 +25,12 @@ export const Footer = ({ onOpenContactModal }) => {
             <div className="border-b border-background/10">
                 <div className="max-w-7xl mx-auto px-6 md:px-12 py-20">
                     <AnimatedSection className="text-center">
-                        <h2 className="font-display text-3xl md:text-5xl font-bold mb-6">
-                            Ready to Get Started?
+                        <h2 className="font-display text-3xl md:text-5xl font-bold mb-6 italic">
+                            Scale Your <span className="text-primary italic">Restaurant</span> Today
                         </h2>
-                        <p className="text-background/60 text-lg max-w-xl mx-auto mb-8">
-                            Transform your restaurant experience today. Start your free 14-day trial
-                            with no credit card required.
+                        <p className="text-background/60 text-lg max-w-xl mx-auto mb-8 italic font-medium">
+                            Join high-growth restaurants using ChefOS to automate operations,
+                            reduce waste, and maximize revenue.
                         </p>
                         <div className="flex flex-row flex-wrap gap-3 sm:gap-4 justify-center">
                             <motion.div

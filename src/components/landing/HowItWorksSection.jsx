@@ -1,32 +1,32 @@
 import { motion } from "framer-motion";
 import { AnimatedSection, StaggerContainer, StaggerItem } from "@/components/ui/animated-section";
-import { QrCode, Smartphone, Utensils, CreditCard, CheckCircle } from "lucide-react";
+import { QrCode, ClipboardList, LayoutDashboard, LineChart, CheckCircle } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const steps = [
     {
-        icon: QrCode,
+        icon: ClipboardList,
         step: "01",
-        title: "Scan QR Code",
-        description: "Customers scan the unique QR code at their table using their smartphone camera.",
+        title: "Import Your Assets",
+        description: "Upload your current menu items. Our AI helps auto-categorize and optimize descriptions for upselling.",
     },
     {
-        icon: Smartphone,
+        icon: QrCode,
         step: "02",
-        title: "Browse & Order",
-        description: "View the full menu with photos, select items, customize, and send order to kitchen.",
+        title: "Deploy Floor Plan",
+        description: "Map your tables and generate unique QR codes for each location in just a few clicks.",
     },
     {
-        icon: Utensils,
+        icon: LayoutDashboard,
         step: "03",
-        title: "Enjoy Your Meal",
-        description: "Kitchen receives the order instantly. Staff is notified and prepares your food.",
+        title: "Go Live Instantly",
+        description: "Launch your Kitchen Display System (KDS) and start receiving orders with zero hardware cost.",
     },
     {
-        icon: CreditCard,
+        icon: LineChart,
         step: "04",
-        title: "Simple Payment",
-        description: "Request bill, pay online or cash, leave a review, and you're done!",
+        title: "Optimize & Scale",
+        description: "Use real-time analytics to identify high-margin items and reduce operational waste.",
     },
 ];
 
@@ -45,16 +45,15 @@ export const HowItWorksSection = ({ onOpenContactModal }) => {
             <div className="relative z-10 max-w-7xl mx-auto">
                 {/* Section Header */}
                 <AnimatedSection className="text-center mb-12 sm:mb-16 lg:mb-20">
-                    <span className="inline-block text-primary font-medium text-sm uppercase tracking-wider mb-3 sm:mb-4">
-                        How It Works
+                    <span className="inline-block text-primary font-black text-[10px] uppercase tracking-[0.3em] mb-4">
+                        The Onboarding Path
                     </span>
                     <h2 className="font-display text-3xl md:text-5xl font-bold mb-4 sm:mb-6 leading-tight">
-                        Simple Steps to{" "}
-                        <span className="text-primary">Better Service</span>
+                        Zero Friction <span className="text-primary italic">Implementation</span>
                     </h2>
-                    <p className="text-background/70 text-base sm:text-lg max-w-2xl mx-auto leading-relaxed">
-                        From the moment your guests sit down to when they leave satisfied,
-                        ChefOS handles everything smoothly.
+                    <p className="text-background/70 text-base sm:text-lg max-w-2xl mx-auto leading-relaxed font-medium italic">
+                        Most POS transitions take weeks. With ChefOS, you can be up and running
+                        before your next shift starts.
                     </p>
                 </AnimatedSection>
 

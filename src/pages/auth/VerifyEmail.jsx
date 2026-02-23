@@ -77,8 +77,8 @@ const VerifyEmail = () => {
                             animate={{ scale: 1 }}
                             transition={{ type: "spring", stiffness: 200, damping: 15 }}
                             className={`p-6 rounded-3xl ${status === 'verifying' ? 'bg-white/5 text-primary' :
-                                    status === 'success' ? 'bg-emerald-500/10 text-emerald-500' :
-                                        'bg-red-500/10 text-red-500'
+                                status === 'success' ? 'bg-emerald-500/10 text-emerald-500' :
+                                    'bg-red-500/10 text-red-500'
                                 } border border-white/10 shadow-xl`}
                         >
                             <AnimatePresence mode="wait">
@@ -180,7 +180,7 @@ const VerifyEmail = () => {
             {/* Attribution */}
             <div className="absolute bottom-8 left-1/2 -translate-x-1/2">
                 <p className="text-white/20 text-[10px] font-bold uppercase tracking-[0.3em]">
-                    Powered by ChefOS Intelligence
+                    Powered by ChefOS intelligence
                 </p>
             </div>
         </div>

@@ -10,7 +10,7 @@ import { useSocket } from '../../hooks/useSocket';
 const OrderTracking = () => {
     const params = useParams();
     const { socket } = useSocket();
-    const [storedOrderId, setStoredOrderId] = useState(() => localStorage.getItem('tablefy_last_order_id'));
+    const [storedOrderId, setStoredOrderId] = useState(() => localStorage.getItem('chefos_last_order_id'));
     const orderId = params.orderId || storedOrderId;
 
     const [showSplitter, setShowSplitter] = useState(false);
@@ -49,9 +49,27 @@ const OrderTracking = () => {
                 });
             });
 
+            socket.on('order:updated', (updatedOrder) => {
+                if (updatedOrder._id === orderId) {
+                    refetch();
+                    if (updatedOrder.status === 'CANCELLED') {
+                        toast.error('Order status: CANCELLED', { icon: '🚫' });
+                    }
+                }
+            });
+
+            socket.on('order:payment-updated', (data) => {
+                if (data.orderId === orderId && data.paymentStatus === 'PAID') {
+                    refetch();
+                    toast.success('Payment confirmed! Thank you.', { icon: '💰' });
+                }
+            });
+
             return () => {
                 socket.off('service:completed');
                 socket.off('service:cancelled');
+                socket.off('order:updated');
+                socket.off('order:payment-updated');
             };
         }
     }, [socket, order?.table?._id]);
@@ -71,7 +89,7 @@ const OrderTracking = () => {
             <h2 className="text-xl font-bold mb-2">No Active Order</h2>
             <p className="text-gray-400 mb-6">Looks like you haven't placed an order yet.</p>
             <Link
-                to={`/menu/${localStorage.getItem('tablefy_restaurant_id') || ''}${localStorage.getItem('tablefy_table_id') ? `/${localStorage.getItem('tablefy_table_id')}` : ''}`}
+                to={`/menu/${localStorage.getItem('chefos_restaurant_id') || ''}${localStorage.getItem('chefos_table_id') ? `/${localStorage.getItem('chefos_table_id')}` : ''}`}
                 className="bg-primary text-black font-bold px-6 py-3 rounded-xl hover:bg-primary/90 transition-colors"
             >
                 Browse Menu
@@ -287,14 +305,14 @@ const OrderTracking = () => {
                                 <span className="bg-white/10 px-2 py-0.5 rounded text-xs font-bold text-primary min-w-[24px] text-center">{item.quantity}x</span>
                                 <span className="font-medium text-gray-200">{item.name || item.menuItem?.name || 'Item'}</span>
                             </div>
-                            <span className="text-gray-400 font-mono">${((item.price || 0) * item.quantity).toFixed(2)}</span>
+                            <span className="text-gray-400 font-mono">{((item.price || 0) * item.quantity).toFixed(2)}</span>
                         </div>
                     ))}
                 </div>
 
                 <div className="border-t border-white/10 mt-4 pt-4 flex justify-between items-center">
                     <span className="text-gray-400 font-medium text-sm">Total Amount</span>
-                    <span className="text-xl font-bold text-white">${order.total?.toFixed(2)}</span>
+                    <span className="text-xl font-bold text-white">{order.total?.toFixed(2)}</span>
                 </div>
             </div>
 
@@ -377,7 +395,7 @@ const OrderTracking = () => {
 
                             <div className="text-center mb-6">
                                 <p className="text-gray-400 text-sm mb-1">Each person pays:</p>
-                                <p className="text-3xl font-bold text-primary">${(order.total / splitCount).toFixed(2)}</p>
+                                <p className="text-3xl font-bold text-primary">{(order.total / splitCount).toFixed(2)}</p>
                             </div>
 
                             <div className="grid grid-cols-2 gap-3">

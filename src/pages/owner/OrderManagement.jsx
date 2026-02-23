@@ -384,7 +384,7 @@ const OrderManagement = () => {
 
                     {/* Professional Stats Overview - Horizontal Scroll on Mobile */}
                     {activeTab === 'ACTIVE' && (
-                        <div className="flex overflow-x-auto pb-4 -mx-3 px-3 sm:mx-0 sm:px-0 sm:pb-0 sm:grid sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 snap-x snap-mandatory carousel-scrollbar touch-pan-x">
+                        <div className="flex overflow-x-auto pb-4 -mx-3 px-3 sm:mx-0 sm:px-0 sm:pb-0 sm:grid sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 snap-x snap-mandatory carousel-scrollbar touch-pan-x mb-6">
                             <div className="bg-card border border-border p-4 rounded-xl flex items-center justify-between shadow-sm min-w-[240px] snap-center">
                                 <div>
                                     <p className="text-xs text-muted-foreground uppercase font-bold tracking-wider">Active Orders</p>
@@ -666,7 +666,7 @@ const OrderCard = ({ order, config, urgent, onUpdateStatus, getSourceIcon }) => 
                 <div className="flex flex-col">
                     <span className="text-[8px] uppercase font-black text-muted-foreground tracking-widest mb-0.5">Total Amount</span>
                     <span className="text-xl font-black text-foreground leading-none tracking-tighter">
-                        ${order.total.toFixed(2)}
+                        {order.total.toFixed(2)}
                     </span>
                 </div>
 

@@ -178,7 +178,7 @@ const Header = ({ onMobileMenuClick }) => {
                 <div className="flex items-center gap-3 cursor-pointer group">
                     <div className="text-right hidden md:block">
                         <div className="flex items-center gap-2 justify-end">
-                            {user?.restaurant?.subscription?.plan === 'PREMIUM' && (
+                            {user?.restaurant?.subscription?.plan?.name === 'PREMIUM' && (
                                 <span className="text-[10px] bg-primary/10 text-primary border border-primary/20 px-1.5 py-0.5 rounded flex items-center gap-1 font-bold">
                                     <Sparkles size={8} /> PREMIUM
                                 </span>

@@ -132,7 +132,7 @@ const CustomerSidebar = ({ isOpen, onClose, restaurant, tableId }) => {
 
                             <div className="bg-white/5 rounded-xl p-4 text-center">
                                 <p className="text-gray-500 text-xs mb-1">Powered by</p>
-                                <h3 className="font-bold text-white tracking-widest">ChefOS</h3>
+                                <h3 className="font-bold text-white tracking-widest text-lg uppercase">ChefOS</h3>
                             </div>
                         </div>
                     </motion.div>

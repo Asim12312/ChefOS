@@ -55,7 +55,7 @@ export const chatWithChef = async (req, res, next) => {
 
         // Prepare context
         const menuContext = menuItems.map(item =>
-            `- ${item.name}: ${item.description} (Price: ${item.price} ${restaurant.currency || 'USD'})`
+            `- ${item.name}: ${item.description} (Price: ${item.price})`
         ).join('\n');
 
         const systemPrompt = `
@@ -78,6 +78,7 @@ ${menuContext}
 4. **Ordering**: If the user wants to order, guide them to add items to their cart in the app interface.
 5. **Conciseness**: Keep responses helpful but relatively concise for a chat interface.
 6. **Formatting**: Use bolding for menu item names. Use bullet points for lists.
+7. **Pricing**: When mentioning prices, just state the number. Do NOT mention currency names like 'USD' or any other symbols.
 
 ### Conversation History:
 ${history ? JSON.stringify(history) : 'No previous history.'}
@@ -85,10 +86,18 @@ ${history ? JSON.stringify(history) : 'No previous history.'}
 Customer's current message: "${message}"
 `;
 
-        // Use gemini-1.5-flash as it's the standard recommended model
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        // Try gemini-2.5-flash-preview-09-2025 first (available to this key), then fallback to lite
+        let result;
+        try {
+            const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-preview-09-2025" });
+            result = await model.generateContent(systemPrompt);
+        } catch (modelError) {
+            logger.warn(`Primary model gemini-2.5-flash-preview-09-2025 failed, trying fallback: ${modelError.message}`);
+            // Fallback to gemini-flash-lite-latest which appeared in the available list
+            const fallbackModel = genAI.getGenerativeModel({ model: "gemini-flash-lite-latest" });
+            result = await fallbackModel.generateContent(systemPrompt);
+        }
 
-        const result = await model.generateContent(systemPrompt);
         const responseText = result.response.text();
         logger.info('Chef AI Response generated successfully');
 
@@ -100,16 +109,16 @@ Customer's current message: "${message}"
         logger.error(`Chef AI Error: ${error.message}`);
         console.error('FULL AI ERROR:', error);
 
-        // Return a more descriptive error in development to help debugging
-        const errorMessage = error.message || 'An error occurred while communicating with Chef AI';
-        const isQuotaError = errorMessage.toLowerCase().includes('quota') || errorMessage.toLowerCase().includes('limit');
+        // Return more specific error details if available
+        const errorDetail = error.response?.data?.error?.message || error.message;
+        const isQuotaError = errorDetail?.toLowerCase().includes('quota') || errorDetail?.toLowerCase().includes('limit');
 
         res.status(500).json({
             success: false,
             message: isQuotaError
                 ? 'Chef AI is currently busy (rate limit reached). Please try again in a minute.'
-                : 'An error occurred while communicating with Chef AI. Please ensure your API key is valid.',
-            error: process.env.NODE_ENV === 'development' ? errorMessage : undefined
+                : `An error occurred while communicating with Chef AI: ${errorDetail}`,
+            error: process.env.NODE_ENV === 'development' ? error.stack : undefined
         });
     }
 };

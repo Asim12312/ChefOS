@@ -8,7 +8,17 @@ const PremiumGuard = ({ children, featureName, description, isLocked, compact })
     const navigate = useNavigate();
 
     // Use explicit isLocked prop if provided, otherwise fallback to subscription check
-    const locked = isLocked !== undefined ? isLocked : user?.restaurant?.subscription?.plan !== 'PREMIUM';
+    const subscriptionPlan = user?.restaurant?.subscription?.plan;
+
+    // Fix: plan is an object with a name property, not a string directly
+    const planName = subscriptionPlan?.name || 'FREE';
+
+    // console.log('[PremiumGuard] Checking Premium Status:', { 
+    //     feature: featureName, 
+    //     planName: planName
+    // });
+
+    const locked = isLocked !== undefined ? isLocked : planName !== 'PREMIUM';
 
     if (!locked) {
         return children;

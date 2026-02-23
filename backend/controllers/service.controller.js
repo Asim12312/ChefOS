@@ -8,6 +8,21 @@ export const createServiceRequest = async (req, res, next) => {
     try {
         const { restaurant, table, type, comment } = req.body;
 
+        // Prevent duplicate pending requests of the same type for same table
+        const existing = await ServiceRequest.findOne({
+            restaurant,
+            table,
+            type,
+            status: 'PENDING'
+        });
+
+        if (existing) {
+            return res.status(200).json({
+                success: true,
+                message: 'Request already exists',
+                data: existing
+            });
+        }
 
         const request = await ServiceRequest.create({
             restaurant,

@@ -7,14 +7,16 @@ import toast from 'react-hot-toast';
 import { motion } from 'framer-motion';
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
+import { useCustomer } from '../../context/CustomerContext'; // Assuming this import is needed for useCustomer
 
 const CustomerBill = () => {
     const params = useParams();
     const navigate = useNavigate();
     const { tableId: contextTableId } = useOutletContext() || {};
-    const [storedOrderId] = useState(() => localStorage.getItem('tablefy_last_order_id'));
+    const [storedOrderId] = useState(() => localStorage.getItem('chefos_last_order_id'));
+    const { restaurant } = useCustomer();
     const orderId = params.orderId || storedOrderId;
-    const tableId = contextTableId || localStorage.getItem('tablefy_table_id');
+    const tableId = contextTableId || localStorage.getItem('chefos_table_id');
 
     const { data: order, isLoading } = useQuery({
         queryKey: ['order-bill', orderId, tableId],
@@ -173,7 +175,7 @@ const CustomerBill = () => {
             <h2 className="text-xl font-bold mb-2">No Bill Found</h2>
             <p className="text-gray-400 mb-6">Access your bill after placing an order.</p>
             <Link
-                to={`/menu/${localStorage.getItem('tablefy_restaurant_id') || ''}${localStorage.getItem('tablefy_table_id') ? `/${localStorage.getItem('tablefy_table_id')}` : ''}`}
+                to={`/menu/${localStorage.getItem('chefos_restaurant_id') || ''}${localStorage.getItem('chefos_table_id') ? `/${localStorage.getItem('chefos_table_id')}` : ''}`}
                 className="text-primary font-bold hover:underline"
             >
                 Back to Menu
@@ -237,7 +239,7 @@ const CustomerBill = () => {
                                 <span className="font-bold">{item.quantity}x</span>
                                 <span>{item.name || item.menuItem?.name}</span>
                             </div>
-                            <span className="font-bold">${((item.price || 0) * item.quantity).toFixed(2)}</span>
+                            <span className="font-bold">{((item.price || 0) * item.quantity).toFixed(2)}</span>
                         </div>
                     ))}
                 </div>
@@ -248,15 +250,15 @@ const CustomerBill = () => {
                 <div className="space-y-2 font-mono text-sm mb-6">
                     <div className="flex justify-between text-gray-600">
                         <span>Subtotal</span>
-                        <span>${((order.total || 0) / 1.1).toFixed(2)}</span>
+                        <span>{((order.total || 0) / 1.1).toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between text-gray-600">
                         <span>Tax (10%)</span>
-                        <span>${((order.total || 0) - ((order.total || 0) / 1.1)).toFixed(2)}</span>
+                        <span>{((order.total || 0) - ((order.total || 0) / 1.1)).toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between text-xl font-bold mt-4 pt-4 border-t-2 border-black">
                         <span>TOTAL</span>
-                        <span>${(order.total || 0).toFixed(2)}</span>
+                        <span>{(order.total || 0).toFixed(2)}</span>
                     </div>
                 </div>
 

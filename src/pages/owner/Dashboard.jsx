@@ -67,7 +67,7 @@ const Dashboard = () => {
                     }
                 };
 
-                const isPremium = user?.restaurant?.subscription?.plan === 'PREMIUM';
+                const isPremium = user?.restaurant?.subscription?.plan?.name === 'PREMIUM';
 
                 const [
                     summaryRes,
@@ -295,7 +295,7 @@ const Dashboard = () => {
                         </motion.div>
 
                         <div className="flex gap-1.5 sm:gap-2 flex-wrap">
-                            {user?.restaurant?.subscription?.plan !== 'PREMIUM' && (
+                            {user?.restaurant?.subscription?.plan?.name !== 'PREMIUM' && (
                                 <motion.button
                                     whileHover={{ scale: 1.02 }}
                                     whileTap={{ scale: 0.98 }}

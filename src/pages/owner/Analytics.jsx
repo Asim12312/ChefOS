@@ -70,7 +70,7 @@ const Analytics = () => {
                 }
             };
 
-            const isPremium = user?.restaurant?.subscription?.plan === 'PREMIUM';
+            const isPremium = user?.restaurant?.subscription?.plan?.name === 'PREMIUM';
 
             const [ordersRes, revenueRes, peakHoursRes, topItemsRes] = await Promise.all([
                 isPremium
@@ -195,7 +195,7 @@ const Analytics = () => {
                                 ))}
                             </div>
 
-                            {user?.restaurant?.subscription?.plan === 'PREMIUM' ? (
+                            {user?.restaurant?.subscription?.plan?.name === 'PREMIUM' ? (
                                 <button
                                     onClick={downloadCSV}
                                     className="flex-1 sm:flex-none px-8 py-4 bg-muted/50 border-4 border-border rounded-[2rem] text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground hover:bg-muted transition-all flex items-center justify-center gap-3"
@@ -227,8 +227,8 @@ const Analytics = () => {
                                 <div className="snap-center">
                                     <StatsCard
                                         title="Total Revenue"
-                                        value={`$${Math.round(data.revenue?.totalRevenue || 0)}`}
-                                        icon={DollarSign}
+                                        value={Math.round(data.revenue?.totalRevenue || 0)}
+                                        icon={TrendingUp}
                                         trend={data.revenue?.trends?.revenue}
                                     />
                                 </div>
@@ -243,7 +243,7 @@ const Analytics = () => {
                                 <div className="snap-center">
                                     <StatsCard
                                         title="Avg. Ticket"
-                                        value={`$${Math.round(data.revenue?.avgTransactionValue || 0)}`}
+                                        value={Math.round(data.revenue?.avgTransactionValue || 0)}
                                         icon={TrendingUp}
                                         trend={data.revenue?.trends?.ticket}
                                     />

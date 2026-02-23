@@ -6,7 +6,7 @@ import cloudinary from '../config/cloudinary.js';
 const storage = new CloudinaryStorage({
     cloudinary: cloudinary,
     params: {
-        folder: 'tablefy', // Folder name in Cloudinary
+        folder: 'chefos', // Folder name in Cloudinary
         allowed_formats: ['jpg', 'jpeg', 'png', 'gif', 'webp'],
         transformation: [{ width: 1000, height: 1000, crop: 'limit' }] // Max dimensions
     }

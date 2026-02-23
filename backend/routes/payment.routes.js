@@ -22,8 +22,8 @@ router.get('/methods', getPaymentMethods);
 router.get('/history/:restaurantId', protect, authorize('OWNER', 'ADMIN'), getPaymentHistory);
 router.post('/manual-bill', protect, authorize('OWNER', 'ADMIN'), createManualBill);
 
-// Webhook routes (raw body parsing)
-router.post('/webhook/stripe', express.raw({ type: 'application/json' }), handleStripeWebhook);
+// Webhook routes (raw body parsing handled in server.js for Stripe)
+router.post('/webhook/stripe', handleStripeWebhook);
 router.post('/webhook/safepay', express.json(), handleSafepayWebhook);
 
 // Subscription routes

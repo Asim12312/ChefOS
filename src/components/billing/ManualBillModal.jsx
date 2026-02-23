@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import api from '../../config/api';
-import { X, Plus, Minus, Search, ShoppingCart, Printer, DollarSign } from 'lucide-react';
+import { X, Plus, Minus, Search, ShoppingCart, Printer, Receipt } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 
@@ -185,7 +185,7 @@ const ManualBillModal = ({ restaurantId, onClose, onSuccess }) => {
                                             <h4 className="font-semibold text-sm mb-1 line-clamp-1">{item.name}</h4>
                                             <p className="text-xs text-muted-foreground mb-2 line-clamp-1">{item.description}</p>
                                             <div className="flex items-center justify-between">
-                                                <span className="font-bold text-primary">${item.price.toFixed(2)}</span>
+                                                <span className="font-bold text-primary">{item.price.toFixed(2)}</span>
                                                 <Plus size={16} className="text-primary" />
                                             </div>
                                         </motion.div>
@@ -225,7 +225,7 @@ const ManualBillModal = ({ restaurantId, onClose, onSuccess }) => {
                                         <div className="flex-1 min-w-0 pr-3">
                                             <p className="font-medium text-sm truncate">{item.name}</p>
                                             <p className="text-xs text-muted-foreground">
-                                                ${item.price.toFixed(2)} x {item.quantity}
+                                                {item.price.toFixed(2)} x {item.quantity}
                                             </p>
                                         </div>
                                         <div className="flex items-center gap-2">
@@ -245,7 +245,7 @@ const ManualBillModal = ({ restaurantId, onClose, onSuccess }) => {
                                                 </button>
                                             </div>
                                             <span className="font-bold text-sm min-w-[60px] text-right">
-                                                ${(item.price * item.quantity).toFixed(2)}
+                                                {(item.price * item.quantity).toFixed(2)}
                                             </span>
                                         </div>
                                     </div>
@@ -258,15 +258,15 @@ const ManualBillModal = ({ restaurantId, onClose, onSuccess }) => {
                             <div className="space-y-2">
                                 <div className="flex justify-between text-sm">
                                     <span className="text-muted-foreground">Subtotal</span>
-                                    <span className="font-medium">${subtotal.toFixed(2)}</span>
+                                    <span className="font-medium">{subtotal.toFixed(2)}</span>
                                 </div>
                                 <div className="flex justify-between text-sm">
                                     <span className="text-muted-foreground">Tax (10%)</span>
-                                    <span className="font-medium">${tax.toFixed(2)}</span>
+                                    <span className="font-medium">{tax.toFixed(2)}</span>
                                 </div>
                                 <div className="flex justify-between text-lg font-bold pt-2 border-t border-border">
                                     <span>Total</span>
-                                    <span className="text-primary">${total.toFixed(2)}</span>
+                                    <span className="text-primary">{total.toFixed(2)}</span>
                                 </div>
                             </div>
 

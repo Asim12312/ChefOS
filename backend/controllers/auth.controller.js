@@ -129,7 +129,10 @@ export const login = async (req, res, next) => {
         }
 
         // Populate restaurant for immediate frontend benefit
-        await user.populate('restaurant');
+        await user.populate({
+            path: 'restaurant',
+            populate: { path: 'subscription' }
+        });
 
         // Generate tokens
         const token = generateToken(user._id);

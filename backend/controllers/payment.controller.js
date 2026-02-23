@@ -172,7 +172,25 @@ export const handleSafepayWebhook = async (req, res, next) => {
 
         const webhookData = await safepayService.processWebhook(req.body);
 
-        // Find payment by tracker
+        // Check if this is a subscription upgrade (B2B)
+        const metadata = webhookData.metadata || {};
+        if (metadata.type === 'SUBSCRIPTION_UPGRADE' && webhookData.status === 'COMPLETED') {
+            const { restaurantId, plan } = metadata;
+
+            const restaurant = await Restaurant.findById(restaurantId).populate('subscription');
+            if (restaurant && restaurant.subscription) {
+                const subscription = restaurant.subscription;
+                subscription.status = 'ACTIVE';
+                subscription.currentPeriodStart = new Date();
+                subscription.currentPeriodEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+                await subscription.save();
+
+                logger.info(`Safepay: Subscription activated for restaurant ${restaurantId} (Plan: ${plan})`);
+                return res.json({ received: true, type: 'subscription_activated' });
+            }
+        }
+
+        // Otherwise, handle as customer order payment
         const payment = await Payment.findOne({ safepayTracker: webhookData.tracker });
 
         if (payment) {
@@ -239,33 +257,57 @@ export const createSubscription = async (req, res, next) => {
         };
 
         let clientSecret = null;
+        let checkoutUrl = null;
 
         // Skip Stripe for FREE plan
         if (planName !== 'FREE') {
-            // Create or get Stripe customer
-            const customer = await stripeService.createOrGetCustomer(
-                restaurant.contact.email || req.user.email,
-                restaurant.name,
-                { restaurantId: restaurant._id.toString() }
-            );
+            const gateway = restaurant.paymentGateway || 'STRIPE';
 
-            // Create subscription
-            const subscriptionResult = await stripeService.createSubscription({
-                customerId: customer.id,
-                priceId,
-                metadata: {
-                    restaurantId: restaurant._id.toString(),
-                    plan: planName
-                }
-            });
+            if (gateway === 'STRIPE') {
+                // Create or get Stripe customer
+                const customer = await stripeService.createOrGetCustomer(
+                    restaurant.contact.email || req.user.email,
+                    restaurant.name,
+                    { restaurantId: restaurant._id.toString() }
+                );
 
-            subscriptionData.stripeCustomerId = customer.id;
-            subscriptionData.stripeSubscriptionId = subscriptionResult.subscriptionId;
-            subscriptionData.stripePriceId = priceId;
-            subscriptionData.status = subscriptionResult.status.toUpperCase();
-            clientSecret = subscriptionResult.clientSecret;
+                // Create subscription
+                const subscriptionResult = await stripeService.createSubscription({
+                    customerId: customer.id,
+                    priceId,
+                    metadata: {
+                        restaurantId: restaurant._id.toString(),
+                        plan: planName
+                    }
+                });
 
-            restaurant.stripeCustomerId = customer.id;
+                subscriptionData.stripeCustomerId = customer.id;
+                subscriptionData.stripeSubscriptionId = subscriptionResult.subscriptionId;
+                subscriptionData.stripePriceId = priceId;
+                subscriptionData.status = subscriptionResult.status.toUpperCase();
+                clientSecret = subscriptionResult.clientSecret;
+
+                restaurant.stripeCustomerId = customer.id;
+            } else if (gateway === 'SAFEPAY') {
+                // Safepay handles subscriptions via one-time checkouts for now
+                const plan = subscriptionData.plan;
+                const safepayResult = await safepayService.createCheckout({
+                    amount: plan.price * 100, // Handle as PKR paisas or USD cents depending on currency
+                    currency: restaurant.currency || 'PKR',
+                    orderId: `SUB-${restaurant._id}-${Date.now()}`,
+                    orderReference: `Premium Upgrade: ${restaurant.name}`,
+                    successUrl: `${process.env.FRONTEND_URL}/owner/subscription/success`,
+                    cancelUrl: `${process.env.FRONTEND_URL}/owner/subscription`,
+                    metadata: {
+                        restaurantId: restaurant._id.toString(),
+                        plan: planName,
+                        type: 'SUBSCRIPTION_UPGRADE'
+                    }
+                });
+
+                checkoutUrl = safepayResult.checkoutUrl;
+                subscriptionData.status = 'PENDING'; // Wait for Safepay webhook
+            }
         }
 
         // Create subscription record
@@ -275,13 +317,14 @@ export const createSubscription = async (req, res, next) => {
         restaurant.subscription = subscription._id;
         await restaurant.save();
 
-        logger.info(`Subscription created for restaurant ${restaurant._id}: ${subscription._id} (${planName})`);
+        logger.info(`Subscription initiated for restaurant ${restaurant._id}: ${subscription._id} (${planName}) Gateway: ${restaurant.paymentGateway || 'STRIPE'}`);
 
         res.status(201).json({
             success: true,
             data: {
                 subscription,
-                clientSecret
+                clientSecret,
+                checkoutUrl
             }
         });
     } catch (error) {
@@ -493,7 +536,7 @@ async function handleCheckoutSessionCompleted(session) {
         const { restaurantId, planId } = session.metadata;
         const subscriptionId = session.subscription;
 
-        logger.info(`Processing subscription checkout for restaurant: ${restaurantId}`);
+        logger.info(`[Webhook] Processing subscription checkout - Restaurant: ${restaurantId}, Plan: ${planId}, SubscriptionId: ${subscriptionId}`);
 
         try {
             // Fetch full subscription details from Stripe
@@ -504,6 +547,7 @@ async function handleCheckoutSessionCompleted(session) {
 
                 // 1. Get Plan Details
                 const planDetails = getPlanDetails(planId, stripeSub.priceId);
+                logger.info(`[Webhook] Plan details resolved - Name: ${planDetails.name}, Price: ${planDetails.price}`);
 
                 // 2. Find or Create Subscription Record
                 let subscription = await Subscription.findOne({ restaurant: restaurantId });
@@ -554,10 +598,11 @@ async function handleCheckoutSessionCompleted(session) {
                     stripeCustomerId: session.customer
                 });
 
-                logger.info(`Subscription activated for restaurant ${restaurantId}`);
+                logger.info(`[Webhook] ✅ Subscription successfully activated - Restaurant: ${restaurantId}, Plan: ${planDetails.name}, Status: ${subscription.status}`);
             }
         } catch (error) {
             logger.error(`Error handling subscription checkout: ${error.message}`);
+            logger.error(`[Webhook] ❌ Full error stack:`, error);
         }
     }
 }

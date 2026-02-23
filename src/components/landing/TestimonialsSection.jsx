@@ -5,22 +5,22 @@ import { AnimatedSection, StaggerContainer, StaggerItem } from "../ui/animated-s
 const testimonials = [
     {
         name: "Rajesh Kumar",
-        role: "Owner, The Curry House (London)",
-        content: "Honestly, I was not sure at first but ChefOS made our weekends so much smoother. The digital menu just works and customers actually enjoy using it!",
+        role: "Owner, The Curry House",
+        content: "Revenue increased by 22% in the first month. The AI-powered upselling really works—we're seeing much higher beverage sales.",
         rating: 5,
         image: "RK",
     },
     {
         name: "Aisha Ahmed",
-        role: "Manager, Spice Village (Dubai)",
-        content: "The analytics dashboard alone is worth it. We now know exactly what's selling and can optimize our menu accordingly.",
+        role: "Manager, Spice Village",
+        content: "Our table turnover rate improved by 30% during peak hours. Customers love the instant digital close, and it frees up my staff.",
         rating: 5,
         image: "AA",
     },
     {
         name: "Vikram Singh",
-        role: "Owner, Tandoori Nights (Berlin)",
-        content: "Setup took 15 minutes. Our staff adapted instantly, and customers compliment us on how modern our ordering system is.",
+        role: "Chef-Owner, Tandoori Nights",
+        content: "Ordering errors dropped to zero. The KDS is so much cleaner than paper tickets. Setup was surprisingly effortless.",
         rating: 5,
         image: "VS",
     },

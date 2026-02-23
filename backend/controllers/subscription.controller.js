@@ -190,12 +190,18 @@ export const syncSubscription = async (req, res, next) => {
             const stripeSub = result.subscriptions[0];
             const priceId = stripeSub.items.data[0].price.id;
 
+            logger.info(`[Sync] Found Stripe Subscription: ${stripeSub.id}`);
+            logger.info(`[Sync] Price ID from Stripe: ${priceId}`);
+            logger.info(`[Sync] Expected Premium Price ID: ${process.env.STRIPE_PRICE_ID_PREMIUM}`);
+
             // Determine plan based on price ID
             // Ideally we check if priceId matches our premium price ID
             let planName = 'FREE';
             if (priceId === process.env.STRIPE_PRICE_ID_PREMIUM) {
                 planName = 'PREMIUM';
             }
+
+            logger.info(`[Sync] Determined Plan Name: ${planName}`);
 
             const planDetails = getPlanDetails(planName, priceId);
 

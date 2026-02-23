@@ -415,7 +415,6 @@ const StaffManagement = () => {
 };
 
 const StaffCard = ({ member, onRemove, onEdit, index, availableFeatures }) => {
-    const [isDeleting, setIsDeleting] = useState(false);
 
     // Map member permissions to labels
     const activePermissions = availableFeatures?.filter(f =>
@@ -464,11 +463,12 @@ const StaffCard = ({ member, onRemove, onEdit, index, availableFeatures }) => {
                     </button>
                     <button
                         onClick={() => {
-                            if (isDeleting) onRemove();
-                            else setIsDeleting(true);
+                            if (window.confirm(`Are you sure you want to remove ${member.name}?`)) {
+                                onRemove();
+                            }
                         }}
-                        onMouseLeave={() => setIsDeleting(false)}
-                        className={`p-4 rounded-2xl transition-all ${isDeleting ? 'bg-red-500 text-white shadow-lg shadow-red-500/40' : 'bg-muted hover:bg-red-500/10 hover:text-red-500'}`}
+                        className="p-4 rounded-2xl bg-muted hover:bg-red-500/10 hover:text-red-500 transition-all"
+                        title="Remove Staff Member"
                     >
                         <Trash2 size={20} />
                     </button>

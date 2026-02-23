@@ -20,7 +20,7 @@ export const checkPremium = async (req, res, next) => {
             });
         }
 
-        const restaurant = await Restaurant.findById(restaurantId);
+        const restaurant = await Restaurant.findById(restaurantId).populate('subscription');
 
         if (!restaurant) {
             return res.status(404).json({
@@ -29,7 +29,7 @@ export const checkPremium = async (req, res, next) => {
             });
         }
 
-        if (restaurant.subscription?.plan !== 'PREMIUM') {
+        if (restaurant.subscription?.plan?.name !== 'PREMIUM') {
             return res.status(403).json({
                 success: false,
                 message: 'This feature is only available for Premium subscribers',
@@ -67,7 +67,7 @@ export const checkPremiumPublic = async (req, res, next) => {
             });
         }
 
-        if (restaurant.subscription?.plan !== 'PREMIUM') {
+        if (restaurant.subscription?.plan?.name !== 'PREMIUM') {
             return res.status(403).json({
                 success: false,
                 message: 'This feature is currently disabled for this restaurant (Premium required)',

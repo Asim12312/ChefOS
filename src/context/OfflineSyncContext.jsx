@@ -8,12 +8,12 @@ const OfflineSyncContext = createContext();
 export const OfflineSyncProvider = ({ children }) => {
     const isOnline = useOnline();
     const [queue, setQueue] = useState(() => {
-        const saved = localStorage.getItem('tablefy_offline_queue');
+        const saved = localStorage.getItem('chefos_offline_queue');
         return saved ? JSON.parse(saved) : [];
     });
 
     useEffect(() => {
-        localStorage.setItem('tablefy_offline_queue', JSON.stringify(queue));
+        localStorage.setItem('chefos_offline_queue', JSON.stringify(queue));
     }, [queue]);
 
     // Attempt to sync when back online

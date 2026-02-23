@@ -148,13 +148,15 @@ export const DemoMenuSection = () => {
             <div className="relative z-10 max-w-7xl mx-auto px-4">
                 {/* Section Header */}
                 <AnimatedSection className="text-center mb-12 sm:mb-20">
+                    <span className="inline-block text-primary font-black text-[10px] uppercase tracking-[0.3em] mb-4">
+                        Guest-Facing Interface
+                    </span>
                     <h2 className="font-display text-3xl md:text-5xl font-bold mb-6">
-                        Experience the{" "}
-                        <span className="text-gradient">Customer View</span>
+                        Superior <span className="text-gradient italic">Guest Experience</span>
                     </h2>
-                    <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-                        See how your customers will interact with your digital menu.
-                        A seamless journey from browsing to payment.
+                    <p className="text-muted-foreground text-lg max-w-2xl mx-auto italic font-medium">
+                        ChefOS isn't just a backend tool. It's an elegant extension of your brand that
+                        removes ordering friction and maximizes table turnover while delighting your guests.
                     </p>
                 </AnimatedSection>
 
@@ -167,8 +169,8 @@ export const DemoMenuSection = () => {
                                 key={screen.id}
                                 onClick={() => setActiveIndex(index)}
                                 className={`w-full text-left p-6 rounded-2xl border transition-all duration-300 relative overflow-hidden group ${activeIndex === index
-                                        ? "bg-background border-primary shadow-xl"
-                                        : "bg-transparent border-border/50 hover:border-primary/30"
+                                    ? "bg-background border-primary shadow-xl"
+                                    : "bg-transparent border-border/50 hover:border-primary/30"
                                     }`}
                                 whileHover={{ x: 10 }}
                             >

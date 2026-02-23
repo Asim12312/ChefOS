@@ -78,6 +78,9 @@ const SubscriptionPlans = ({ restaurantId }) => {
 
             if (response.data.data.clientSecret) {
                 setClientSecret(response.data.data.clientSecret);
+            } else if (response.data.data.checkoutUrl) {
+                // For Safepay or other redirect-based gateways
+                window.location.href = response.data.data.checkoutUrl;
             } else {
                 // For free plans or non-Stripe plans
                 handlePaymentSuccess();

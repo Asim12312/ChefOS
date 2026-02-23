@@ -3,62 +3,63 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { CheckCircle, ArrowRight, Loader2 } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { useAuth } from '../../context/AuthContext';
 
 const SubscriptionSuccess = () => {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const sessionId = searchParams.get('session_id');
     const [countdown, setCountdown] = useState(5);
+    const { fetchMe } = useAuth();
 
     useEffect(() => {
-        if (sessionId) {
-            // Trigger confetti
-            const duration = 3 * 1000;
-            const animationEnd = Date.now() + duration;
-            const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 0 };
+        // Refresh user data to get updated subscription info
+        fetchMe();
 
-            const randomInRange = (min, max) => Math.random() * (max - min) + min;
+        // Trigger confetti
+        const duration = 3 * 1000;
+        const animationEnd = Date.now() + duration;
+        const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 0 };
 
-            const interval = setInterval(() => {
-                const timeLeft = animationEnd - Date.now();
+        const randomInRange = (min, max) => Math.random() * (max - min) + min;
 
-                if (timeLeft <= 0) {
-                    return clearInterval(interval);
+        const interval = setInterval(() => {
+            const timeLeft = animationEnd - Date.now();
+
+            if (timeLeft <= 0) {
+                return clearInterval(interval);
+            }
+
+            const particleCount = 50 * (timeLeft / duration);
+            confetti({
+                ...defaults,
+                particleCount,
+                origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 }
+            });
+            confetti({
+                ...defaults,
+                particleCount,
+                origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 }
+            });
+        }, 250);
+
+        // Countdown to redirect
+        const timer = setInterval(() => {
+            setCountdown((prev) => {
+                if (prev <= 1) {
+                    clearInterval(timer);
+                    navigate('/subscription');
+                    return 0;
                 }
+                return prev - 1;
+            });
+        }, 1000);
 
-                const particleCount = 50 * (timeLeft / duration);
-                confetti({
-                    ...defaults,
-                    particleCount,
-                    origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 }
-                });
-                confetti({
-                    ...defaults,
-                    particleCount,
-                    origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 }
-                });
-            }, 250);
-
-            // Countdown to redirect
-            const timer = setInterval(() => {
-                setCountdown((prev) => {
-                    if (prev <= 1) {
-                        clearInterval(timer);
-                        navigate('/subscription');
-                        return 0;
-                    }
-                    return prev - 1;
-                });
-            }, 1000);
-
-            return () => {
-                clearInterval(interval);
-                clearInterval(timer);
-            };
-        } else {
-            navigate('/subscription');
-        }
-    }, [sessionId, navigate]);
+        return () => {
+            clearInterval(interval);
+            clearInterval(timer);
+        };
+    }, [navigate, fetchMe]);
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-background p-4">

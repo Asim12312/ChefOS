@@ -65,19 +65,20 @@ export const DemoSection = () => {
                     </div>
 
                     <h2 className="text-4xl md:text-6xl font-black tracking-tight leading-[1.1]">
-                        See ChefOS in <span className="bg-gradient-to-r from-primary to-indigo-400 bg-clip-text text-transparent">Action</span>
+                        Experience <span className="bg-gradient-to-r from-primary to-indigo-400 bg-clip-text text-transparent">Total Control</span>
                     </h2>
 
-                    <p className="text-xl text-white/60 font-medium leading-relaxed max-w-xl">
-                        Join 500+ restaurant owners who transformed their business. Get an exclusive 5-minute walkthrough of the 3D menu, KDS, and Analytics suite.
+                    <p className="text-xl text-white/60 font-medium leading-relaxed max-w-xl italic">
+                        Join hundreds of restaurants using ChefOS. Get an exclusive look at the
+                        platform: From smart menus to real-time order management.
                     </p>
 
-                    <div className="space-y-4 pt-4">
+                    <div className="space-y-4 pt-4 font-display">
                         {[
-                            '3D Interactive Menu Walkthrough',
-                            'Kitchen Display System (KDS) Demo',
-                            'Real-time Analytics Dashboard',
-                            'QR Code Generation Preview'
+                            'AI-Powered Revenue Optimization',
+                            'Invisible Kitchen Orchestration (KDS)',
+                            'C-Suite Analytics & Profit Dashboards',
+                            'Dynamic Floor Plan Management'
                         ].map((item, i) => (
                             <div key={i} className="flex items-center gap-3 text-white/80 font-bold italic">
                                 <div className="w-5 h-5 rounded-full bg-primary/20 flex items-center justify-center">

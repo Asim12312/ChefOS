@@ -111,16 +111,16 @@ export const PricingSection = () => {
 
     const plans = [
         {
-            name: "Free",
+            name: "Starter",
             price: "0",
-            description: "Perfect for small cafes starting with digital menus",
+            description: "Essential tools for family-owned cafes and small bistros.",
             features: getPlanFeatures(false),
             highlighted: false,
         },
         {
-            name: "Premium",
+            name: "Business OS",
             price: BASE_PRICE.toString(),
-            description: "The full Kitchen Operating System",
+            description: "The complete engine for high-volume dining operations.",
             features: getPlanFeatures(true),
             highlighted: true,
         },
@@ -136,14 +136,13 @@ export const PricingSection = () => {
                 <AnimatedSection className="text-center mb-12 sm:mb-16">
                     <div className="flex items-center justify-center gap-2 text-primary font-medium text-sm uppercase tracking-wider mb-3 sm:mb-4">
                         <Star className="w-4 h-4" />
-                        <span>Founding Partner Offer - First 20 Restaurants</span>
+                        <span>Founding Partner Offer - Unlimited Lifetime Access Plans</span>
                     </div>
                     <h2 className="font-display text-3xl md:text-5xl font-bold mb-4 sm:mb-6 leading-tight">
-                        Simple, Transparent{" "}
-                        <span className="text-gradient">Pricing</span>
+                        Built to <span className="text-gradient">Scale Your Profits</span>
                     </h2>
-                    <p className="text-muted-foreground text-base sm:text-lg max-w-2xl mx-auto leading-relaxed">
-                        Join as a founding partner. Manual activation and personal onboarding for a limited time.
+                    <p className="text-muted-foreground text-base sm:text-lg max-w-2xl mx-auto leading-relaxed italic">
+                        No hidden fees. No complicated tiers. Choose the plan that fits your current volume and grow from there.
                     </p>
                 </AnimatedSection>
 

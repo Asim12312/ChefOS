@@ -19,7 +19,7 @@ const FloatingActionMenu = ({ restaurant, tableId, openChefAI }) => {
     };
 
     const handleCallWaiter = async () => {
-        const orderId = localStorage.getItem('tablefy_last_order_id');
+        const orderId = localStorage.getItem('chefos_last_order_id');
         if (!orderId) {
             toast.error("Please place an order first to call a waiter.");
             return;
@@ -50,7 +50,7 @@ const FloatingActionMenu = ({ restaurant, tableId, openChefAI }) => {
     };
 
     const handleRequestBill = async () => {
-        const orderId = localStorage.getItem('tablefy_last_order_id');
+        const orderId = localStorage.getItem('chefos_last_order_id');
         if (!orderId) {
             toast.error("Please place an order first to request the bill.");
             return;
@@ -125,7 +125,7 @@ const FloatingActionMenu = ({ restaurant, tableId, openChefAI }) => {
                                 </motion.div>
 
                                 {/* Ask AI Chef - Premium only */}
-                                {restaurant?.subscription?.plan === 'PREMIUM' && (
+                                {restaurant?.subscription?.plan?.name === 'PREMIUM' && (
                                     <motion.div
                                         initial={{ scale: 0, x: 20 }}
                                         animate={{ scale: 1, x: 0 }}

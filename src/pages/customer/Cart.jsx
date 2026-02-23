@@ -52,12 +52,14 @@ const Cart = () => {
                     <h1 className="text-2xl font-bold">Your Order</h1>
                 </div>
 
-                <button
-                    onClick={openChefAI}
-                    className="bg-white text-black px-4 py-2 rounded-xl shadow-lg flex items-center gap-2 active:scale-95 transition-all font-semibold text-xs whitespace-nowrap"
-                >
-                    <Sparkles size={16} className="text-purple-600" /> Ask Chef AI
-                </button>
+                {useOutletContext().isPremium && (
+                    <button
+                        onClick={openChefAI}
+                        className="bg-white text-black px-4 py-2 rounded-xl shadow-lg flex items-center gap-2 active:scale-95 transition-all font-semibold text-xs whitespace-nowrap"
+                    >
+                        <Sparkles size={16} className="text-purple-600" /> Ask Chef AI
+                    </button>
+                )}
             </header>
 
             <div className="space-y-4">
@@ -110,15 +112,15 @@ const Cart = () => {
                     <div className="space-y-2 mb-4">
                         <div className="flex justify-between text-gray-400 text-sm">
                             <span>Subtotal</span>
-                            <span>${cartTotal.toFixed(2)}</span>
+                            <span>{cartTotal.toFixed(2)}</span>
                         </div>
                         <div className="flex justify-between text-gray-400 text-sm">
                             <span>Tax (10%)</span>
-                            <span>${(cartTotal * 0.1).toFixed(2)}</span>
+                            <span>{(cartTotal * 0.1).toFixed(2)}</span>
                         </div>
                         <div className="flex justify-between text-xl font-bold text-white pt-2 border-t border-white/10">
                             <span>Total</span>
-                            <span className="text-primary">${(cartTotal * 1.1).toFixed(2)}</span>
+                            <span className="text-primary">{(cartTotal * 1.1).toFixed(2)}</span>
                         </div>
                     </div>
 
@@ -180,7 +182,7 @@ const CartItem = ({ item, updateQuantity, removeFromCart }) => {
             <div className="flex-1 z-10">
                 <div className="flex justify-between items-start mb-1">
                     <h3 className="font-bold text-base leading-tight">{item.name}</h3>
-                    <span className="font-bold text-primary">${(item.price * item.quantity).toFixed(2)}</span>
+                    <span className="font-bold text-primary">{(item.price * item.quantity).toFixed(2)}</span>
                 </div>
                 {item.specialInstructions && (
                     <p className="text-xs text-gray-400 italic mb-2 line-clamp-1">"{item.specialInstructions}"</p>

@@ -49,8 +49,8 @@ const Sidebar = ({ className, open, onClose }) => {
         { label: 'QR Management', icon: QrCode, link: '/qr-codes', permission: 'qr-codes' },
         { label: 'Analytics', icon: BarChart3, link: '/analytics', permission: 'analytics' },
         { label: 'Staff Management', icon: Users, link: '/staff-management', permission: 'staff' },
-        { label: 'Reviews', icon: Star, link: '/reviews', permission: 'reviews' },
-        { label: 'Complaints', icon: MessageSquare, link: '/complaints', permission: 'complaints' },
+        { label: 'Reviews', icon: Star, link: '/admin/reviews', permission: 'reviews' },
+        { label: 'Complaints', icon: MessageSquare, link: '/admin/complaints', permission: 'complaints' },
         { label: 'Settings', icon: Settings, link: '/settings', permission: 'settings' },
         { label: 'Subscription', icon: Sparkles, link: '/subscription', permission: 'subscription' },
     ];
@@ -120,13 +120,13 @@ const Sidebar = ({ className, open, onClose }) => {
                 <button
                     onClick={togglePin}
                     className={cn(
-                        "hidden lg:flex p-2 rounded-xl transition-all duration-300 bg-background border border-border shadow-sm",
+                        "hidden lg:flex p-2 rounded-xl transition-all duration-300 bg-background border border-border shadow-sm active:scale-95",
                         isPinned
-                            ? "relative right-4"
-                            : "absolute -right-3 top-20 transition-opacity"
+                            ? "relative"
+                            : "absolute -right-3 top-36 transition-opacity"
                     )}
                 >
-                    {isPinned ? <Pin size={18} fill="currentColor" /> : <Pin size={18} />}
+                    {isPinned ? <Pin size={18} fill="currentColor" className="text-primary" /> : <Pin size={18} />}
                 </button>
             </div>
 

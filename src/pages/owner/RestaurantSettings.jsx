@@ -301,6 +301,33 @@ const GeneralSettings = ({ restaurant, handleChange, handleFileUpload }) => (
                             <Settings size={16} className="absolute right-6 top-1/2 -translate-y-1/2 text-muted-foreground/30 opacity-0 group-hover/field:opacity-100 transition-opacity" />
                         </div>
                     </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="group/field relative">
+                            <label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground mb-2 block px-1">Currency</label>
+                            <select
+                                name="currency"
+                                value={restaurant.currency || 'USD'}
+                                onChange={handleChange}
+                                className="w-full bg-muted/20 border-2 border-transparent focus:border-primary/50 rounded-2xl py-4 px-6 text-sm font-medium transition-all outline-none appearance-none"
+                            >
+                                <option value="USD">USD ($)</option>
+                                <option value="PKR">PKR (Rs.)</option>
+                            </select>
+                        </div>
+                        <div className="group/field relative">
+                            <label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground mb-2 block px-1">Base Gateway</label>
+                            <select
+                                name="paymentGateway"
+                                value={restaurant.paymentGateway || 'STRIPE'}
+                                onChange={handleChange}
+                                className="w-full bg-muted/20 border-2 border-transparent focus:border-primary/50 rounded-2xl py-4 px-6 text-sm font-medium transition-all outline-none appearance-none"
+                            >
+                                <option value="STRIPE">Stripe</option>
+                                <option value="SAFEPAY">Safepay</option>
+                            </select>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
