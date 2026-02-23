@@ -7,14 +7,12 @@ import toast from 'react-hot-toast';
 import { motion } from 'framer-motion';
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
-import { useCustomer } from '../../context/CustomerContext'; // Assuming this import is needed for useCustomer
 
 const CustomerBill = () => {
     const params = useParams();
     const navigate = useNavigate();
     const { tableId: contextTableId } = useOutletContext() || {};
     const [storedOrderId] = useState(() => localStorage.getItem('chefos_last_order_id'));
-    const { restaurant } = useCustomer();
     const orderId = params.orderId || storedOrderId;
     const tableId = contextTableId || localStorage.getItem('chefos_table_id');
 
