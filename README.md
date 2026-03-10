@@ -1,4 +1,4 @@
-<h1 align="center">🍽️ Tablefy (ChefOS / MenuSphere)</h1>
+<h1 align="center">🍽️ ChefOS</h1>
 
 <p align="center">
   <strong>Smart QR-Based 3D Menu, Real-time Ordering & Kitchen Display System</strong>
@@ -17,13 +17,54 @@
 
 ## 📖 Project Description
 
-Tablefy is a comprehensive, production-grade MERN stack SaaS application tailored for restaurants, cafes, and modern dining establishments. Designed to streamline operations, it offers an end-to-end QR-based digital menu experience with interactive 3D models while seamlessly connecting customers to a robust real-time ordering and kitchen display system. Through its diverse sets of features, including multi-tenant support for restaurant owners, AI-driven dish recommendations, inventory tracking, analytics, and secure payment processing, Tablefy empowers modern dining businesses to rapidly digitize and scale their infrastructure.
+**ChefOS** is a comprehensive, production-grade MERN stack SaaS application tailored for restaurants, cafes, and modern dining establishments. Designed to streamline operations, it offers an end-to-end QR-based digital menu experience with interactive 3D models while seamlessly connecting customers to a robust real-time ordering and kitchen display system. Through its diverse sets of features, including multi-tenant support for restaurant owners, AI-driven dish recommendations, inventory tracking, analytics, and secure payment processing, ChefOS empowers modern dining businesses to rapidly digitize and scale their infrastructure.
 
-## 🔗 Live Demo
-> **[Live Deployment Link Here]** *(Placeholder - e.g., Vercel / Render configuration in progress)*
+## 🔗 Live Demo & Repository
+> **Live Deployment:** [https://chefos.pro](https://chefos.pro)  
+> **GitHub Repository:** [https://github.com/Asim12312/ChefOS.git](https://github.com/Asim12312/ChefOS.git)
 
 ## 📸 Screenshots
-*(Coming soon - Add visual previews of the Customer Cart, Owner Dashboard, and Kitchen Display System here)*
+
+Here is a glimpse of the ChefOS platform across different modules:
+
+### Landing Page
+![Landing Page](./snips/landing.PNG)
+
+### Authentication
+**Login**  
+![Login](./snips/login.PNG)
+
+**Registration**  
+![Signup](./snips/signup.PNG)
+
+### Owner/Admin Interface
+**Dashboard Analytics**  
+![Dashboard](./snips/dashboard.PNG)
+
+**Order Management System**  
+![Orders](./snips/orders.PNG)
+
+**QR Code Management**  
+![QR Management](./snips/qr%20management.PNG)
+
+**Team Management**  
+![Team Management](./snips/team%20mangement.PNG)
+
+**Business Timings Configuration**  
+![Timing Configuration](./snips/timing.PNG)
+
+**Settings & Configuration**  
+![Settings](./snips/settings.PNG)
+
+**Chef AI Insights**  
+![AI Integration](./snips/AI.PNG)
+
+### Invoicing & Billing
+**Customer Bill**  
+![Customer Bill](./snips/customer%20bill.PNG)
+
+**Detailed Invoice**  
+![Bill Invoice](./snips/bill.PNG)
 
 ## ✨ Features
 
@@ -41,9 +82,8 @@ Tablefy is a comprehensive, production-grade MERN stack SaaS application tailore
 
 ### **Frontend**
 - **Library:** React.js (v19)
-- **Styling:** Tailwind CSS (v4) with `class-variance-authority` and `clsx`
-- **Animations & 3D:** Framer Motion, Three.js, React Three Fiber, React Three Drei
-- **Data Fetching:** Axios, React Query (`@tanstack/react-query`)
+- **Styling:** Tailwind CSS (v4)
+- **Data Fetching:** Axios
 - **State Management & Routing:** React Router v6
 - **Real-time Client:** Socket.io-client
 
@@ -60,7 +100,7 @@ Tablefy is a comprehensive, production-grade MERN stack SaaS application tailore
 
 ## 🏗️ System Architecture Overview
 
-Tablefy utilizes a robust Model-View-Controller (MVC) approach on the backend combined with a reactive, component-driven frontend. 
+ChefOS utilizes a robust Model-View-Controller (MVC) approach on the backend combined with a reactive, component-driven frontend. 
 - The **Client Layer** communicates securely via RESTful APIs for transactional data (e.g. Auth, Crud Ops) and WebSocket channels for instant, bidirectional real-time events (Orders, Status Updates).
 - The **Service Layer** integrates third-party pipelines such as Stripe for payments, Cloudinary for static assets, and Google Generative AI for recommendation models.
 - The **Data Layer** guarantees ACID-like structures through MongoDB & Redis for high-performant cache delivery and real-time locking mechanisms to prevent double orders.
@@ -68,7 +108,7 @@ Tablefy utilizes a robust Model-View-Controller (MVC) approach on the backend co
 ## 📂 Folder Structure
 
 ```text
-Tablefy/
+ChefOS/
 ├── backend/
 │   ├── config/           # Environment & DB connection settings
 │   ├── controllers/      # Route handlers & core business logic
@@ -125,8 +165,8 @@ A concise look at standard application APIs (Bearer Authentication required for 
 
 ### 1. Clone the repository
 ```bash
-git clone https://github.com/YourUsername/Tablefy.git
-cd Tablefy
+git clone https://github.com/Asim12312/ChefOS.git
+cd ChefOS
 ```
 
 ### 2. Backend Setup
@@ -139,13 +179,12 @@ npm install
 ### 3. Frontend Setup
 Navigate back to the frontend (root directory) and install UI dependencies:
 ```bash
-cd ..
-npm install
+npm install --legacy-peer-deps
 ```
 
 ## 🔐 Environment Variables (.env example)
 
-Create a `.env` file in the **`backend/`** directory matching the following requirements:
+Create a `.env` file in the root backend configuration (`backend/`) overriding default settings:
 
 ```env
 # Backend Server Configuration
@@ -154,7 +193,7 @@ NODE_ENV=development
 CLIENT_URL=http://localhost:5173
 
 # MongoDB Connection
-MONGO_URI=mongodb+srv://<username>:<password>@cluster.mongodb.net/tablefy
+MONGO_URI=mongodb+srv://<username>:<password>@cluster.mongodb.net/chefos
 
 # Authentication Flags
 JWT_SECRET=your_super_secret_jwt_key
@@ -169,6 +208,13 @@ CLOUDINARY_API_KEY=your_api_key
 CLOUDINARY_API_SECRET=your_api_secret
 GEMINI_API_KEY=your_google_generative_ai_key
 REDIS_URL=redis://localhost:6379
+```
+
+Also configure environment variables natively for the Frontend (`.env` in the root directory):
+```env
+VITE_API_URL=http://localhost:5000/api
+VITE_SOCKET_URL=http://localhost:5000
+VITE_STRIPE_PUBLIC_KEY=your_stripe_key
 ```
 
 ## 🏃‍♂️ Running the Application
@@ -204,11 +250,11 @@ npm run lint
 
 ## 🌐 Deployment
 
-This MERN application can be securely scaled using Vercel alongside Render or AWS EC2:
+ChefOS operates seamlessly using scaling providers like Vercel and Render:
 
-1. **Frontend**: The repository includes a `vercel.json` configurations file. Pushing the `main` branch connected to Vercel instances directly builds the Vite-based output.
-2. **Backend**: Utilize Docker, Render Web Services, or AWS Elastic Beanstalk. Remember to set native `.env` environmental properties natively via your host.
-3. **Database**: We highly advise MongoDB Atlas for multi-AZ clusters in a production scale.
+1. **Frontend**: Simply link the Github repository natively via Vercel. Pushing the `main` branch to Vercel builds the Vite-based output.
+2. **Backend**: Utilize Docker, Render Web Services, or AWS EC2. Remember to set `.env` environmental properties natively on the deployment server host.
+3. **Database**: We highly advise MongoDB Atlas for multi-AZ clusters globally scoped.
 
 ## 🚀 Future Improvements
 
@@ -220,10 +266,9 @@ This MERN application can be securely scaled using Vercel alongside Render or AW
 
 ## 👨‍💻 Author
 
-**[Your Name / Your Team]**  
+**Muhammad Asim**  
 *MERN Stack Architect / Full Stack Engineer*  
-- [GitHub Profile](https://github.com/YourUsername)
-- [LinkedIn](https://linkedin.com/in/YourUsername)
+- [GitHub Profile](https://github.com/Asim12312)
 
 ## 📄 License
 
